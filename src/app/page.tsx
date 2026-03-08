@@ -3,34 +3,52 @@ import { ArrowRight, Layers, LayoutPanelLeft, FileLock2, Image as ImageIcon, Shi
 import { Button } from "@/components/ui/Button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card"
 
+import { ScrollImageSequence } from "@/components/ui/ScrollImageSequence"
+
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1">
-      {/* Hero Section */}
-      <section className="w-full py-20 md:py-32 lg:py-40 flex flex-col items-center justify-center text-center px-4">
-        <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[linear-gradient(to_right,#f0f0f0_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] bg-[size:6rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]"></div>
-        <div className="inline-flex max-w-min items-center gap-2 rounded-full border bg-background/50 px-3 py-1 text-sm font-medium backdrop-blur-md mb-8">
-          <ShieldCheck className="size-4 text-green-500" />
-          <span className="text-muted-foreground">100% Private, works offline in your browser.</span>
-        </div>
-        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight max-w-4xl mb-6 text-foreground">
-          The Cleanest <span className="text-primary">PDF Toolkit</span> for Everyone.
-        </h1>
-        <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mb-10 leading-relaxed">
-          Merge, split, compress, and convert your PDFs quickly and privately.
-          No uploads. No limits. No BS.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 w-full justify-center max-w-sm sm:max-w-none">
-          <Button size="lg" className="rounded-full text-base h-12 px-8" asChild>
-            <Link href="/tools">
-              Get Started <ArrowRight className="ml-2 size-4" />
-            </Link>
-          </Button>
-          <Button size="lg" variant="outline" className="rounded-full text-base h-12 px-8" asChild>
-            <Link href="/about">
-              Learn More
-            </Link>
-          </Button>
+    <div className="flex flex-col flex-1 bg-zinc-950 text-white min-h-screen">
+      {/* Scroll-Driven Hero Sequence Section */}
+      <section className="relative w-full h-[250vh]">
+        {/* Sticky container that stays fixed while scrolling the 250vh */}
+        <div className="sticky top-0 h-screen w-full overflow-hidden flex flex-col items-center justify-center">
+
+          {/* Background Canvas Animation */}
+          <div className="absolute inset-0 w-full h-full z-0">
+            <ScrollImageSequence
+              frameFolder="/frames/pdf-sequence"
+              frameCount={240}
+            />
+          </div>
+
+          {/* Foreground Text Content */}
+          <div className="relative z-20 flex flex-col items-center justify-center text-center px-4 -mt-20">
+            <div className="inline-flex max-w-min items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3 py-1 text-sm font-medium backdrop-blur-md mb-8 text-zinc-300">
+              <Zap className="size-4 text-primary" />
+              <span>PDF Toolkit</span>
+            </div>
+
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter max-w-5xl mb-6 text-white leading-[1.1]">
+              Work with PDFs <span className="text-primary italic font-serif tracking-normal">beautifully</span>
+            </h1>
+
+            <p className="text-xl md:text-2xl text-zinc-400 max-w-2xl mb-10 leading-relaxed font-light">
+              Merge, split, compress, and convert files through a fast browser-based workflow.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 w-full justify-center max-w-sm sm:max-w-none">
+              <Button size="lg" className="rounded-full text-base h-12 px-8 bg-white text-black hover:bg-zinc-200 border-0" asChild>
+                <Link href="/tools">
+                  Explore Tools <ArrowRight className="ml-2 size-4" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" className="rounded-full text-base h-12 px-8 border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800 text-white backdrop-blur-sm" asChild>
+                <Link href="/about">
+                  View Features
+                </Link>
+              </Button>
+            </div>
+          </div>
         </div>
       </section>
 
