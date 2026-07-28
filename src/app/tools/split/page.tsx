@@ -4,12 +4,14 @@ import { useEffect, useState } from "react"
 import { LayoutPanelLeft, Loader2 } from "lucide-react"
 import { FileUploader } from "@/components/ui/FileUploader"
 import { Button } from "@/components/ui/Button"
-import { splitPdf, downloadFile, getPdfPageCount } from "@/lib/pdf-utils"
+import { Alert } from "@/components/ui/Alert"
+import { splitPdf, downloadFile, getPdfPageCount, toUserFacingError, formatBytes } from "@/lib/pdf-utils"
 
 export default function SplitPdfPage() {
     const [files, setFiles] = useState<File[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [success, setSuccess] = useState<{ filename: string; size: number } | null>(null)
     const [pageCount, setPageCount] = useState<number | null>(null)
     const [isReadingPages, setIsReadingPages] = useState(false)
     const [startPage, setStartPage] = useState<number>(1)
@@ -18,6 +20,7 @@ export default function SplitPdfPage() {
     const handleFilesSelected = (newFiles: File[]) => {
         setFiles([newFiles[0]])
         setError(null)
+        setSuccess(null)
         setPageCount(null)
     }
 
@@ -26,6 +29,7 @@ export default function SplitPdfPage() {
         setPageCount(null)
         setStartPage(1)
         setEndPage(1)
+        setSuccess(null)
     }
 
     useEffect(() => {
@@ -46,7 +50,7 @@ export default function SplitPdfPage() {
                 if (cancelled) return
                 console.error(err)
                 setPageCount(null)
-                setError("Could not read this PDF. It may be damaged or password-protected.")
+                setError(toUserFacingError(err, "Could not read this PDF. It may be damaged or password-protected."))
             })
             .finally(() => {
                 if (!cancelled) setIsReadingPages(false)
@@ -81,11 +85,13 @@ export default function SplitPdfPage() {
         try {
             setIsProcessing(true)
             setError(null)
+            setSuccess(null)
             const splitPdfBytes = await splitPdf(files[0], startPage, endPage)
-            downloadFile(splitPdfBytes, `split_${startPage}-${endPage}_${files[0].name}`)
+            const result = downloadFile(splitPdfBytes, `split_${startPage}-${endPage}_${files[0].name}`)
+            setSuccess(result)
         } catch (err) {
             console.error(err)
-            setError(err instanceof Error ? err.message : "An error occurred while splitting the PDF.")
+            setError(toUserFacingError(err, "An error occurred while splitting the PDF."))
         } finally {
             setIsProcessing(false)
         }
@@ -99,7 +105,7 @@ export default function SplitPdfPage() {
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight mb-2">Split PDF Document</h1>
                 <p className="text-muted-foreground">
-                    Extract a range of pages from your PDF file. 100% private.
+                    Extract a page range from your PDF file. 100% private.
                 </p>
             </div>
 
@@ -164,9 +170,13 @@ export default function SplitPdfPage() {
                         </div>
 
                         {error && (
-                            <div className="p-4 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 text-sm">
-                                {error}
-                            </div>
+                            <Alert variant="error">{error}</Alert>
+                        )}
+
+                        {success && (
+                            <Alert variant="success" title="Download started">
+                                Saved as {success.filename} ({formatBytes(success.size)}). Check your downloads folder if the file does not appear.
+                            </Alert>
                         )}
 
                         <div className="flex justify-end pt-4 border-t">

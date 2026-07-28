@@ -4,20 +4,24 @@ import { useState } from "react"
 import { Layers, Loader2 } from "lucide-react"
 import { FileUploader } from "@/components/ui/FileUploader"
 import { Button } from "@/components/ui/Button"
-import { mergePdfs, downloadFile } from "@/lib/pdf-utils"
+import { Alert } from "@/components/ui/Alert"
+import { mergePdfs, downloadFile, toUserFacingError, formatBytes } from "@/lib/pdf-utils"
 
 export default function MergePdfPage() {
     const [files, setFiles] = useState<File[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [success, setSuccess] = useState<{ filename: string; size: number } | null>(null)
 
     const handleFilesSelected = (newFiles: File[]) => {
         setFiles((prev) => [...prev, ...newFiles])
         setError(null)
+        setSuccess(null)
     }
 
     const handleRemoveFile = (fileToRemove: File) => {
         setFiles((prev) => prev.filter((f) => f !== fileToRemove))
+        setSuccess(null)
     }
 
     const handleMerge = async () => {
@@ -29,11 +33,13 @@ export default function MergePdfPage() {
         try {
             setIsProcessing(true)
             setError(null)
+            setSuccess(null)
             const mergedPdfBytes = await mergePdfs(files)
-            downloadFile(mergedPdfBytes, "merged_document.pdf")
+            const result = downloadFile(mergedPdfBytes, "merged_document.pdf")
+            setSuccess(result)
         } catch (err) {
             console.error(err)
-            setError(err instanceof Error ? err.message : "An error occurred while merging the PDF files.")
+            setError(toUserFacingError(err, "An error occurred while merging the PDF files."))
         } finally {
             setIsProcessing(false)
         }
@@ -57,14 +63,23 @@ export default function MergePdfPage() {
                     accept={{ "application/pdf": [".pdf"] }}
                     value={files}
                     onRemove={handleRemoveFile}
-                    onReorder={setFiles}
+                    onReorder={(next) => {
+                        setFiles(next)
+                        setSuccess(null)
+                    }}
                     description="Only PDF files are supported"
                 />
 
                 {error && (
-                    <div className="mt-6 p-4 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 text-sm">
+                    <Alert className="mt-6" variant="error">
                         {error}
-                    </div>
+                    </Alert>
+                )}
+
+                {success && (
+                    <Alert className="mt-6" variant="success" title="Download started">
+                        Saved as {success.filename} ({formatBytes(success.size)}). Check your downloads folder if the file does not appear.
+                    </Alert>
                 )}
 
                 {files.length > 0 && (
@@ -77,7 +92,10 @@ export default function MergePdfPage() {
                             <Button
                                 variant="outline"
                                 className="w-full md:w-auto"
-                                onClick={() => setFiles([])}
+                                onClick={() => {
+                                    setFiles([])
+                                    setSuccess(null)
+                                }}
                                 disabled={isProcessing}
                             >
                                 Clear All

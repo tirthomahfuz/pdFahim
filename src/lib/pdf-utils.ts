@@ -1,11 +1,52 @@
 import { PDFDocument } from "pdf-lib"
 
+const ENCRYPTED_MESSAGE =
+    "This PDF is password-protected. Password-protected files are not supported yet."
+
+async function loadPdfDocument(file: File): Promise<PDFDocument> {
+    const arrayBuffer = await file.arrayBuffer()
+
+    try {
+        const pdf = await PDFDocument.load(arrayBuffer)
+        if (pdf.isEncrypted) {
+            throw new Error(ENCRYPTED_MESSAGE)
+        }
+        return pdf
+    } catch (err) {
+        if (err instanceof Error && err.message === ENCRYPTED_MESSAGE) {
+            throw err
+        }
+
+        try {
+            const maybeEncrypted = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
+            if (maybeEncrypted.isEncrypted) {
+                throw new Error(ENCRYPTED_MESSAGE)
+            }
+            return maybeEncrypted
+        } catch (inner) {
+            if (inner instanceof Error && inner.message === ENCRYPTED_MESSAGE) {
+                throw inner
+            }
+        }
+
+        throw new Error(
+            err instanceof Error && err.message
+                ? err.message
+                : "Could not read this PDF. It may be damaged or unsupported."
+        )
+    }
+}
+
+export function toUserFacingError(err: unknown, fallback: string): string {
+    if (err instanceof Error && err.message) return err.message
+    return fallback
+}
+
 /**
  * Returns the page count of a PDF file.
  */
 export async function getPdfPageCount(file: File): Promise<number> {
-    const arrayBuffer = await file.arrayBuffer()
-    const pdf = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
+    const pdf = await loadPdfDocument(file)
     return pdf.getPageCount()
 }
 
@@ -20,8 +61,7 @@ export async function mergePdfs(files: File[]): Promise<Uint8Array> {
     const mergedPdf = await PDFDocument.create()
 
     for (const file of files) {
-        const arrayBuffer = await file.arrayBuffer()
-        const pdf = await PDFDocument.load(arrayBuffer)
+        const pdf = await loadPdfDocument(file)
         const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices())
 
         copiedPages.forEach((page) => {
@@ -38,9 +78,7 @@ export async function mergePdfs(files: File[]): Promise<Uint8Array> {
  * @param endPage 1-indexed end page
  */
 export async function splitPdf(file: File, startPage: number, endPage: number): Promise<Uint8Array> {
-    const arrayBuffer = await file.arrayBuffer()
-    const pdf = await PDFDocument.load(arrayBuffer)
-
+    const pdf = await loadPdfDocument(file)
     const totalPages = pdf.getPageCount()
 
     if (!Number.isInteger(startPage) || !Number.isInteger(endPage)) {
@@ -86,8 +124,7 @@ export async function splitPdf(file: File, startPage: number, endPage: number): 
  * Client-side pdf-lib cannot recompress embedded images, so reductions are often modest.
  */
 export async function compressPdf(file: File): Promise<Uint8Array> {
-    const arrayBuffer = await file.arrayBuffer()
-    const pdf = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
+    const pdf = await loadPdfDocument(file)
 
     pdf.setCreator("")
     pdf.setProducer("")
@@ -143,10 +180,15 @@ export async function imagesToPdf(files: File[]): Promise<Uint8Array> {
     return await pdfDoc.save()
 }
 
+export type DownloadResult = {
+    filename: string
+    size: number
+}
+
 /**
  * Helper to trigger file download in browser
  */
-export function downloadFile(data: Uint8Array, filename: string, type = "application/pdf") {
+export function downloadFile(data: Uint8Array, filename: string, type = "application/pdf"): DownloadResult {
     const bytes = new Uint8Array(data)
     const blob = new Blob([bytes], { type })
     const url = URL.createObjectURL(blob)
@@ -156,5 +198,13 @@ export function downloadFile(data: Uint8Array, filename: string, type = "applica
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    // Defer revoke so browsers finish the download without racing the object URL
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    return { filename, size: bytes.byteLength }
+}
+
+export function formatBytes(bytes: number) {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / 1024 / 1024).toFixed(2)} MB`
 }

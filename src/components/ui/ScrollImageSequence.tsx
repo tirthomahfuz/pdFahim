@@ -1,12 +1,39 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 
 if (typeof window !== 'undefined') {
     gsap.registerPlugin(ScrollTrigger);
+}
+
+type NetworkProfile = 'desktop' | 'mobile' | 'constrained';
+
+function getNetworkProfile(): NetworkProfile {
+    if (typeof window === 'undefined') return 'desktop';
+
+    const connection = (navigator as Navigator & {
+        connection?: { saveData?: boolean; effectiveType?: string };
+    }).connection;
+    const narrow = window.matchMedia('(max-width: 768px)').matches;
+    const saveData = Boolean(connection?.saveData);
+    const slowNetwork = connection?.effectiveType === '2g' || connection?.effectiveType === 'slow-2g';
+
+    if (saveData || slowNetwork) return 'constrained';
+    return narrow ? 'mobile' : 'desktop';
+}
+
+function subscribeNetworkProfile(onChange: () => void) {
+    if (typeof window === 'undefined') return () => undefined;
+    const media = window.matchMedia('(max-width: 768px)');
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+}
+
+function useNetworkProfile() {
+    return useSyncExternalStore(subscribeNetworkProfile, getNetworkProfile, () => 'desktop' as NetworkProfile);
 }
 
 interface ScrollImageSequenceProps {
@@ -19,6 +46,8 @@ interface ScrollImageSequenceProps {
     canvasClassName?: string;
     /** Optional outer scroll section used for scrubbing (avoids nested GSAP pin). */
     scrollTriggerRef?: React.RefObject<HTMLElement | null>;
+    /** When true, show a single static frame and skip scroll scrubbing. */
+    reducedMotion?: boolean;
 }
 
 export function ScrollImageSequence({
@@ -29,16 +58,29 @@ export function ScrollImageSequence({
     frameStep = 2,
     canvasClassName = '',
     scrollTriggerRef,
+    reducedMotion = false,
 }: ScrollImageSequenceProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const canvasSizeRef = useRef({ width: 0, height: 0 });
     const [images, setImages] = useState<(HTMLImageElement | null)[]>([]);
     const [loadedFrames, setLoadedFrames] = useState(0);
     const [isReady, setIsReady] = useState(false);
     const playheadRef = useRef({ frame: 0 });
+    const networkProfile = useNetworkProfile();
 
     const frameIndexes = React.useMemo(() => {
-        const step = Math.max(1, frameStep);
+        if (reducedMotion) {
+            return [1];
+        }
+
+        const step =
+            networkProfile === 'constrained'
+                ? Math.max(frameStep, 6)
+                : networkProfile === 'mobile'
+                    ? Math.max(frameStep, 3)
+                    : Math.max(1, frameStep);
+
         const indexes: number[] = [];
         for (let i = 1; i <= frameCount; i += step) {
             indexes.push(i);
@@ -47,9 +89,8 @@ export function ScrollImageSequence({
             indexes.push(frameCount);
         }
         return indexes;
-    }, [frameCount, frameStep]);
+    }, [frameCount, frameStep, networkProfile, reducedMotion]);
 
-    // 1. Preload selected frames; count errors so loading cannot hang forever
     useEffect(() => {
         let settled = 0;
         let hasDrawable = false;
@@ -61,7 +102,6 @@ export function ScrollImageSequence({
             if (success) hasDrawable = true;
             if (cancelled) return;
             setLoadedFrames(settled);
-            // Ready once any frame paints, or once every request has settled (even if all fail)
             if (hasDrawable || settled === frameIndexes.length) {
                 setIsReady(true);
             }
@@ -113,7 +153,7 @@ export function ScrollImageSequence({
     );
 
     const renderFrame = useCallback(
-        (index: number) => {
+        (index: number, forceResize = false) => {
             const canvas = canvasRef.current;
             const ctx = canvas?.getContext('2d');
             const img = getDrawableFrame(index);
@@ -122,8 +162,15 @@ export function ScrollImageSequence({
             const targetWidth = window.innerWidth;
             const targetHeight = window.innerHeight;
 
-            canvas.width = targetWidth;
-            canvas.height = targetHeight;
+            if (
+                forceResize ||
+                canvasSizeRef.current.width !== targetWidth ||
+                canvasSizeRef.current.height !== targetHeight
+            ) {
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                canvasSizeRef.current = { width: targetWidth, height: targetHeight };
+            }
 
             const imgRatio = img.width / img.height;
             const canvasRatio = targetWidth / targetHeight;
@@ -154,20 +201,19 @@ export function ScrollImageSequence({
     useEffect(() => {
         if (!isReady) return;
 
-        renderFrame(playheadRef.current.frame);
+        renderFrame(playheadRef.current.frame, true);
 
         const handleResize = () => {
-            renderFrame(playheadRef.current.frame);
+            renderFrame(playheadRef.current.frame, true);
         };
 
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, [isReady, renderFrame]);
 
-    // Scrub against the outer section — do not pin (parent already sticky)
     useGSAP(
         () => {
-            if (!isReady || !containerRef.current) return;
+            if (!isReady || !containerRef.current || reducedMotion) return;
 
             const triggerEl = scrollTriggerRef?.current ?? containerRef.current.parentElement;
             if (!triggerEl) return;
@@ -194,7 +240,7 @@ export function ScrollImageSequence({
                 animation.kill();
             };
         },
-        { dependencies: [isReady, images.length, renderFrame, scrollTriggerRef], scope: containerRef }
+        { dependencies: [isReady, images.length, renderFrame, scrollTriggerRef, reducedMotion], scope: containerRef }
     );
 
     const progress = frameIndexes.length
@@ -202,7 +248,11 @@ export function ScrollImageSequence({
         : 0;
 
     return (
-        <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-zinc-950">
+        <div
+            ref={containerRef}
+            className="relative w-full h-full overflow-hidden bg-zinc-950"
+            aria-hidden="true"
+        >
             {!isReady && (
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950 text-white">
                     <div className="mb-4 text-sm font-medium tracking-wide flex items-center gap-2">

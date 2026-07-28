@@ -4,20 +4,24 @@ import { useState } from "react"
 import { Image as ImageIcon, Loader2 } from "lucide-react"
 import { FileUploader } from "@/components/ui/FileUploader"
 import { Button } from "@/components/ui/Button"
-import { imagesToPdf, downloadFile } from "@/lib/pdf-utils"
+import { Alert } from "@/components/ui/Alert"
+import { imagesToPdf, downloadFile, toUserFacingError, formatBytes } from "@/lib/pdf-utils"
 
 export default function ImageToPdfPage() {
     const [files, setFiles] = useState<File[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [success, setSuccess] = useState<{ filename: string; size: number } | null>(null)
 
     const handleFilesSelected = (newFiles: File[]) => {
         setFiles((prev) => [...prev, ...newFiles])
         setError(null)
+        setSuccess(null)
     }
 
     const handleRemoveFile = (fileToRemove: File) => {
         setFiles((prev) => prev.filter((f) => f !== fileToRemove))
+        setSuccess(null)
     }
 
     const handleConvert = async () => {
@@ -29,11 +33,13 @@ export default function ImageToPdfPage() {
         try {
             setIsProcessing(true)
             setError(null)
+            setSuccess(null)
             const pdfBytes = await imagesToPdf(files)
-            downloadFile(pdfBytes, "converted_images.pdf")
+            const result = downloadFile(pdfBytes, "converted_images.pdf")
+            setSuccess(result)
         } catch (err) {
             console.error(err)
-            setError(err instanceof Error ? err.message : "An error occurred while converting images. Ensure they are valid JPG or PNG formats.")
+            setError(toUserFacingError(err, "An error occurred while converting images. Ensure they are valid JPG or PNG formats."))
         } finally {
             setIsProcessing(false)
         }
@@ -60,14 +66,24 @@ export default function ImageToPdfPage() {
                     }}
                     value={files}
                     onRemove={handleRemoveFile}
-                    onReorder={setFiles}
+                    onReorder={(next) => {
+                        setFiles(next)
+                        setSuccess(null)
+                    }}
+                    showPreviews
                     description="Supports JPG and PNG images"
                 />
 
                 {error && (
-                    <div className="mt-6 p-4 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 text-sm">
+                    <Alert className="mt-6" variant="error">
                         {error}
-                    </div>
+                    </Alert>
+                )}
+
+                {success && (
+                    <Alert className="mt-6" variant="success" title="Download started">
+                        Saved as {success.filename} ({formatBytes(success.size)}). Check your downloads folder if the file does not appear.
+                    </Alert>
                 )}
 
                 {files.length > 0 && (
@@ -79,7 +95,10 @@ export default function ImageToPdfPage() {
                             <Button
                                 variant="outline"
                                 className="w-full md:w-auto"
-                                onClick={() => setFiles([])}
+                                onClick={() => {
+                                    setFiles([])
+                                    setSuccess(null)
+                                }}
                                 disabled={isProcessing}
                             >
                                 Clear All

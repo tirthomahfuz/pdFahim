@@ -1,22 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { Minimize2, Loader2, CheckCircle } from "lucide-react"
+import { Minimize2, Loader2 } from "lucide-react"
 import { FileUploader } from "@/components/ui/FileUploader"
 import { Button } from "@/components/ui/Button"
-import { compressPdf, downloadFile } from "@/lib/pdf-utils"
-
-function formatBytes(bytes: number) {
-    if (bytes < 1024) return `${bytes} B`
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-    return `${(bytes / 1024 / 1024).toFixed(2)} MB`
-}
+import { Alert } from "@/components/ui/Alert"
+import { compressPdf, downloadFile, toUserFacingError, formatBytes } from "@/lib/pdf-utils"
 
 export default function CompressPdfPage() {
     const [file, setFile] = useState<File | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const [success, setSuccess] = useState<{ originalSize: number, newSize: number } | null>(null)
+    const [success, setSuccess] = useState<{ originalSize: number; newSize: number; filename: string } | null>(null)
 
     const handleFilesSelected = (newFiles: File[]) => {
         setFile(newFiles[0])
@@ -41,16 +36,16 @@ export default function CompressPdfPage() {
             setSuccess(null)
 
             const compressedPdfBytes = await compressPdf(file)
+            const result = downloadFile(compressedPdfBytes, `optimized_${file.name}`)
 
             setSuccess({
                 originalSize: file.size,
-                newSize: compressedPdfBytes.length
+                newSize: result.size,
+                filename: result.filename,
             })
-
-            downloadFile(compressedPdfBytes, `optimized_${file.name}`)
         } catch (err) {
             console.error(err)
-            setError(err instanceof Error ? err.message : "An error occurred while optimizing the PDF.")
+            setError(toUserFacingError(err, "An error occurred while optimizing the PDF."))
         } finally {
             setIsProcessing(false)
         }
@@ -92,40 +87,32 @@ export default function CompressPdfPage() {
                         />
 
                         {success && (
-                            <div className="rounded-xl border border-green-200 bg-green-50 p-6">
-                                <div className="flex items-start gap-4">
-                                    <CheckCircle className="size-5 text-green-600 mt-0.5" />
-                                    <div>
-                                        <h3 className="font-semibold text-green-800">Optimization Complete</h3>
-                                        <p className="text-sm text-green-700 mt-1">
-                                            {sizeDelta > 0 ? (
-                                                <>
-                                                    Reduced from {formatBytes(success.originalSize)} to {formatBytes(success.newSize)}
-                                                    {" "}({reductionPct}% smaller).
-                                                </>
-                                            ) : sizeDelta < 0 ? (
-                                                <>
-                                                    Result is {formatBytes(success.newSize)} vs original {formatBytes(success.originalSize)}.
-                                                    Structure was cleaned, but this file did not get smaller.
-                                                </>
-                                            ) : (
-                                                <>
-                                                    Size stayed at {formatBytes(success.newSize)}. Metadata was cleaned and the file was re-saved.
-                                                </>
-                                            )}
-                                        </p>
-                                        <p className="text-xs text-green-600 mt-2">
-                                            Client-side optimization mainly removes unused objects and metadata. Embedded images are left as-is.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                            <Alert variant="success" title="Optimization complete">
+                                <p>
+                                    {sizeDelta > 0 ? (
+                                        <>
+                                            Reduced from {formatBytes(success.originalSize)} to {formatBytes(success.newSize)}
+                                            {" "}({reductionPct}% smaller).
+                                        </>
+                                    ) : sizeDelta < 0 ? (
+                                        <>
+                                            Result is {formatBytes(success.newSize)} vs original {formatBytes(success.originalSize)}.
+                                            Structure was cleaned, but this file did not get smaller.
+                                        </>
+                                    ) : (
+                                        <>
+                                            Size stayed at {formatBytes(success.newSize)}. Metadata was cleaned and the file was re-saved.
+                                        </>
+                                    )}
+                                </p>
+                                <p className="text-xs text-green-600 mt-2">
+                                    Download started as {success.filename}. Client-side optimization mainly removes unused objects and metadata.
+                                </p>
+                            </Alert>
                         )}
 
                         {error && (
-                            <div className="p-4 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 text-sm">
-                                {error}
-                            </div>
+                            <Alert variant="error">{error}</Alert>
                         )}
 
                         <div className="flex justify-end pt-4 border-t">

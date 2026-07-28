@@ -38,7 +38,7 @@ export default function ToolsDashboard() {
                             <div>
                                 <CardTitle className="mb-1.5">Split PDF</CardTitle>
                                 <CardDescription>
-                                    Extract specific pages or separate a large PDF by page range.
+                                    Extract a specific page range from a PDF into a new file.
                                 </CardDescription>
                             </div>
                         </CardHeader>

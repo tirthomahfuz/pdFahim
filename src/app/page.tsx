@@ -1,18 +1,36 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, useSyncExternalStore } from "react"
 import Link from "next/link"
 import { ArrowRight, Layers, LayoutPanelLeft, Minimize2, Image as ImageIcon, ShieldCheck, Zap } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card"
 import { ScrollImageSequence } from "@/components/ui/ScrollImageSequence"
 
+function subscribeReducedMotion(onChange: () => void) {
+  const media = window.matchMedia("(prefers-reduced-motion: reduce)")
+  media.addEventListener("change", onChange)
+  return () => media.removeEventListener("change", onChange)
+}
+
+function usePrefersReducedMotion() {
+  return useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    () => false
+  )
+}
+
 export default function Home() {
   const heroSectionRef = useRef<HTMLElement>(null)
+  const reducedMotion = usePrefersReducedMotion()
 
   return (
     <div className="flex flex-col flex-1 bg-zinc-950 text-white min-h-screen">
-      <section ref={heroSectionRef} className="relative w-full h-[220vh]">
+      <section
+        ref={heroSectionRef}
+        className={reducedMotion ? "relative w-full h-screen" : "relative w-full h-[220vh]"}
+      >
         <div className="sticky top-0 h-screen w-full overflow-hidden flex flex-col items-center justify-center">
           <div className="absolute inset-0 w-full h-full z-0">
             <ScrollImageSequence
@@ -20,6 +38,7 @@ export default function Home() {
               frameCount={240}
               frameStep={2}
               scrollTriggerRef={heroSectionRef}
+              reducedMotion={reducedMotion}
             />
           </div>
 
@@ -81,7 +100,7 @@ export default function Home() {
                     <LayoutPanelLeft className="size-6" />
                   </div>
                   <CardTitle>Split PDF</CardTitle>
-                  <CardDescription>Extract specific pages or separate a large PDF into smaller files.</CardDescription>
+                  <CardDescription>Extract a specific page range from a PDF into a new file.</CardDescription>
                 </CardHeader>
               </Card>
             </Link>
