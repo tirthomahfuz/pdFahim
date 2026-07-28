@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, degrees, rgb } from "@cantoo/pdf-lib"
 import { renderPdfPageToJpeg } from "@/lib/pdf-preview"
+import { MAX_LOSSY_PAGES, yieldToMain } from "@/lib/runtime"
 
 export type ProgressUpdate = {
     current: number
@@ -10,51 +11,81 @@ export type ProgressUpdate = {
 export type ProgressCallback = (progress: ProgressUpdate) => void
 
 const ENCRYPTED_MESSAGE =
-    "This PDF is password-protected. Open it with the Unlock tool first, or provide the password."
+    "This PDF is password-protected. Open it with the Unlock tool and enter the password."
+
+function isPasswordError(err: unknown) {
+    const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase()
+    return (
+        message.includes("password") ||
+        message.includes("encrypt") ||
+        message.includes("decrypt") ||
+        message.includes("security")
+    )
+}
 
 async function loadPdfDocument(file: File, password?: string): Promise<PDFDocument> {
     const arrayBuffer = await file.arrayBuffer()
+    const bytes = new Uint8Array(arrayBuffer)
 
-    try {
-        const pdf = await PDFDocument.load(arrayBuffer, password ? { password } : undefined)
-        if (pdf.isEncrypted && !password) {
-            throw new Error(ENCRYPTED_MESSAGE)
+    const attempts: Array<Record<string, unknown> | undefined> = []
+    if (password != null && password !== "") {
+        attempts.push({ password })
+        if (password.trim() !== password) {
+            attempts.push({ password: password.trim() })
         }
-        return pdf
-    } catch (err) {
-        if (err instanceof Error && err.message === ENCRYPTED_MESSAGE) {
-            throw err
-        }
+    } else {
+        attempts.push(undefined)
+    }
 
-        const message = err instanceof Error ? err.message.toLowerCase() : ""
-        if (message.includes("encrypt") || message.includes("password")) {
-            if (password) {
-                throw new Error("Incorrect password, or this PDF cannot be decrypted in the browser.")
-            }
-            throw new Error(ENCRYPTED_MESSAGE)
-        }
+    let lastError: unknown
 
+    for (const options of attempts) {
         try {
-            const maybeEncrypted = await PDFDocument.load(arrayBuffer, {
-                ignoreEncryption: true,
-                ...(password ? { password } : {}),
-            })
-            if (maybeEncrypted.isEncrypted && !password) {
+            const pdf = await PDFDocument.load(bytes, options)
+            if (pdf.isEncrypted && !options?.password) {
                 throw new Error(ENCRYPTED_MESSAGE)
             }
-            return maybeEncrypted
-        } catch (inner) {
-            if (inner instanceof Error && (inner.message === ENCRYPTED_MESSAGE || inner.message.includes("Incorrect password"))) {
-                throw inner
-            }
+            return pdf
+        } catch (err) {
+            lastError = err
         }
+    }
 
+    // Permission-restricted PDFs sometimes open with ignoreEncryption when no user password is set.
+    if (!password) {
+        try {
+            const maybe = await PDFDocument.load(bytes, { ignoreEncryption: true })
+            if (maybe.isEncrypted) {
+                throw new Error(ENCRYPTED_MESSAGE)
+            }
+            return maybe
+        } catch (err) {
+            lastError = err
+        }
+    }
+
+    if (password) {
+        if (isPasswordError(lastError)) {
+            throw new Error(
+                "Could not unlock this PDF. Check the password, or the encryption type may be unsupported in-browser."
+            )
+        }
         throw new Error(
-            err instanceof Error && err.message
-                ? err.message
-                : "Could not read this PDF. It may be damaged or unsupported."
+            lastError instanceof Error
+                ? lastError.message
+                : "Could not unlock this PDF. The encryption type may be unsupported in-browser."
         )
     }
+
+    if (isPasswordError(lastError)) {
+        throw new Error(ENCRYPTED_MESSAGE)
+    }
+
+    throw new Error(
+        lastError instanceof Error && lastError.message
+            ? lastError.message
+            : "Could not read this PDF. It may be damaged or unsupported."
+    )
 }
 
 export function toUserFacingError(err: unknown, fallback: string): string {
@@ -87,6 +118,7 @@ export async function mergePdfs(
         const pdf = await loadPdfDocument(file)
         const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices())
         copiedPages.forEach((page) => mergedPdf.addPage(page))
+        await yieldToMain()
     }
 
     return await mergedPdf.save()
@@ -131,6 +163,7 @@ export async function splitPdf(
     return await splitPdfDoc.save()
 }
 
+export type CompressMode = "lossless" | "lossy"
 export type CompressQuality = "high" | "medium" | "low"
 
 const COMPRESS_PRESETS: Record<CompressQuality, { scale: number; jpegQuality: number }> = {
@@ -139,17 +172,44 @@ const COMPRESS_PRESETS: Record<CompressQuality, { scale: number; jpegQuality: nu
     low: { scale: 1.0, jpegQuality: 0.45 },
 }
 
+export type CompressOptions = {
+    mode?: CompressMode
+    quality?: CompressQuality
+    onProgress?: ProgressCallback
+}
+
 /**
- * Recompresses a PDF by rasterizing each page to JPEG and rebuilding the document.
- * This produces meaningful size reductions for image-heavy PDFs (lossy).
+ * Compress a PDF.
+ * - lossless: keeps selectable text; cleans metadata / object streams
+ * - lossy: rasterizes pages to JPEG for stronger size reduction
  */
 export async function compressPdf(
     file: File,
-    quality: CompressQuality = "medium",
-    onProgress?: ProgressCallback
+    qualityOrOptions: CompressQuality | CompressOptions = "medium",
+    maybeOnProgress?: ProgressCallback
 ): Promise<Uint8Array> {
+    const options: CompressOptions =
+        typeof qualityOrOptions === "string"
+            ? { mode: "lossy", quality: qualityOrOptions, onProgress: maybeOnProgress }
+            : qualityOrOptions
+
+    const mode = options.mode ?? "lossy"
+    const onProgress = options.onProgress
+
+    if (mode === "lossless") {
+        return optimizePdfStructure(file, onProgress)
+    }
+
+    const quality = options.quality ?? "medium"
     const preset = COMPRESS_PRESETS[quality]
     const pageCount = await getPdfPageCount(file)
+
+    if (pageCount > MAX_LOSSY_PAGES) {
+        throw new Error(
+            `Strong compression is limited to ${MAX_LOSSY_PAGES} pages in the browser (this file has ${pageCount}). Use Lossless mode or split the PDF first.`
+        )
+    }
+
     const out = await PDFDocument.create()
 
     for (let pageNumber = 1; pageNumber <= pageCount; pageNumber++) {
@@ -167,6 +227,7 @@ export async function compressPdf(
         const image = await out.embedJpg(bytes)
         const page = out.addPage([width, height])
         page.drawImage(image, { x: 0, y: 0, width, height })
+        await yieldToMain()
     }
 
     out.setCreator("")
@@ -175,15 +236,21 @@ export async function compressPdf(
 }
 
 /**
- * Lightweight metadata cleanup without rasterizing pages.
+ * Lightweight metadata cleanup without rasterizing pages (keeps selectable text).
  */
-export async function optimizePdfStructure(file: File): Promise<Uint8Array> {
+export async function optimizePdfStructure(
+    file: File,
+    onProgress?: ProgressCallback
+): Promise<Uint8Array> {
+    onProgress?.({ current: 1, total: 2, message: "Cleaning metadata…" })
     const pdf = await loadPdfDocument(file)
     pdf.setCreator("")
-    pdf.setProducer("")
+    pdf.setProducer("pdFahim")
     pdf.setTitle("")
     pdf.setSubject("")
     pdf.setKeywords([])
+    onProgress?.({ current: 2, total: 2, message: "Optimizing structure…" })
+    await yieldToMain()
     return await pdf.save({ useObjectStreams: true })
 }
 
@@ -229,6 +296,7 @@ export async function imagesToPdf(
             width: image.width,
             height: image.height,
         })
+        await yieldToMain()
     }
 
     return await pdfDoc.save()
@@ -269,6 +337,7 @@ export async function watermarkPdf(file: File, options: WatermarkOptions): Promi
             rotate: degrees(-32),
             opacity,
         })
+        if (i % 5 === 4) await yieldToMain()
     }
 
     return await pdf.save()
@@ -289,6 +358,7 @@ export async function protectPdf(
     const secured = await PDFDocument.create()
     const pages = await secured.copyPages(source, source.getPageIndices())
     pages.forEach((page) => secured.addPage(page))
+    await yieldToMain()
 
     onProgress?.({ current: 2, total: 2, message: "Encrypting…" })
     secured.encrypt({
@@ -308,13 +378,28 @@ export async function unlockPdf(
         throw new Error("Enter the PDF password.")
     }
 
-    onProgress?.({ current: 1, total: 2, message: "Decrypting…" })
+    onProgress?.({ current: 1, total: 3, message: "Decrypting…" })
     const source = await loadPdfDocument(file, password)
-    const unlocked = await PDFDocument.create()
-    const pages = await unlocked.copyPages(source, source.getPageIndices())
-    pages.forEach((page) => unlocked.addPage(page))
 
-    onProgress?.({ current: 2, total: 2, message: "Saving unlocked PDF…" })
+    onProgress?.({ current: 2, total: 3, message: "Copying pages…" })
+    const unlocked = await PDFDocument.create()
+    const indices = source.getPageIndices()
+
+    // Copy in batches so very large unlocked docs stay responsive
+    const batchSize = 10
+    for (let i = 0; i < indices.length; i += batchSize) {
+        const slice = indices.slice(i, i + batchSize)
+        const pages = await unlocked.copyPages(source, slice)
+        pages.forEach((page) => unlocked.addPage(page))
+        onProgress?.({
+            current: 2,
+            total: 3,
+            message: `Copying pages ${Math.min(i + batchSize, indices.length)} / ${indices.length}`,
+        })
+        await yieldToMain()
+    }
+
+    onProgress?.({ current: 3, total: 3, message: "Saving unlocked PDF…" })
     return await unlocked.save()
 }
 

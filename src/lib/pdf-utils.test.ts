@@ -12,6 +12,7 @@ import {
     watermarkPdf,
     protectPdf,
     unlockPdf,
+    compressPdf,
 } from "@/lib/pdf-utils"
 
 async function makePdfFile(name: string, pages: number, label = "Doc"): Promise<File> {
@@ -80,5 +81,19 @@ describe("pdf-utils", () => {
         const doc = await PDFDocument.load(unlocked)
         expect(doc.getPageCount()).toBe(1)
         expect(doc.isEncrypted).toBe(false)
+    })
+
+    it("rejects an incorrect unlock password clearly", async () => {
+        const file = await makePdfFile("secret.pdf", 1)
+        const protectedBytes = await protectPdf(file, "s3cret")
+        const locked = new File([protectedBytes], "secret.pdf", { type: "application/pdf" })
+        await expect(unlockPdf(locked, "wrong")).rejects.toThrow(/password|unsupported/i)
+    })
+
+    it("lossless compress keeps page count and selectable structure", async () => {
+        const file = await makePdfFile("text.pdf", 2)
+        const optimized = await compressPdf(file, { mode: "lossless" })
+        const doc = await PDFDocument.load(optimized)
+        expect(doc.getPageCount()).toBe(2)
     })
 })

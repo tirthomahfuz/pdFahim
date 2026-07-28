@@ -6,7 +6,9 @@ import { FileUploader } from "@/components/ui/FileUploader"
 import { Button } from "@/components/ui/Button"
 import { Alert } from "@/components/ui/Alert"
 import { Progress } from "@/components/ui/Progress"
+import { FileRiskNotice } from "@/components/ui/FileRiskNotice"
 import { mergePdfs, downloadFile, toUserFacingError, formatBytes, type ProgressUpdate } from "@/lib/pdf-utils"
+import { describeFileRisk, LARGE_FILE_BYTES } from "@/lib/runtime"
 
 export default function MergePdfPage() {
     const [files, setFiles] = useState<File[]>([])
@@ -47,6 +49,13 @@ export default function MergePdfPage() {
     const progressValue = progress && progress.total > 0
         ? (progress.current / progress.total) * 100
         : 0
+    const totalBytes = files.reduce((sum, file) => sum + file.size, 0)
+    const riskyFile = files.find((file) => describeFileRisk(file))
+    const risk = riskyFile
+        ? describeFileRisk(riskyFile)
+        : totalBytes >= LARGE_FILE_BYTES
+            ? `Selected files total ${(totalBytes / 1024 / 1024).toFixed(1)} MB. Merging may take a while in the browser.`
+            : null
 
     return (
         <div className="container mx-auto px-4 py-12 max-w-4xl flex-1">
@@ -77,6 +86,7 @@ export default function MergePdfPage() {
                     description="Only PDF files are supported"
                 />
 
+                <FileRiskNotice message={risk} />
                 {error && <Alert className="mt-6" variant="error">{error}</Alert>}
                 {success && (
                     <Alert className="mt-6" variant="success" title="Download started">

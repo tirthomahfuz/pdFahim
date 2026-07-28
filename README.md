@@ -12,7 +12,7 @@ Engineered with **Next.js**, **Tailwind CSS**, and **pdf-lib**, pdFahim operates
 
 - **Merge PDF:** Consolidate multiple PDF documents into a singular, cohesive file with drag-to-reorder and page thumbnails.
 - **Split PDF:** Extract a validated page range into a new document.
-- **Compress PDF:** Rebuild pages as optimized JPEGs with High/Medium/Low quality presets for real size savings.
+- **Compress PDF:** Lossless mode keeps selectable text; Strong mode rebuilds pages as JPEGs for bigger savings.
 - **Image to PDF:** Convert JPG and PNG images into PDF documents with previews and reordering.
 - **Watermark PDF:** Stamp custom text across every page with opacity and size controls.
 - **Protect / Unlock PDF:** Encrypt with a password or remove a known password entirely in the browser.
@@ -64,6 +64,17 @@ Navigate to `http://localhost:3000` via your preferred web browser to access the
 ### 5. Tests
 ```bash
 npm test
+npm run build
+npm run test:e2e
+```
+
+### 6. Desktop (Tauri)
+Requires a recent Rust toolchain (`rustup` stable) plus [Tauri OS prerequisites](https://tauri.app/start/prerequisites/) (WebKitGTK on Linux).
+
+```bash
+npm run tauri:dev
+# production desktop bundles (AppImage/deb/rpm on Linux, etc.)
+npm run tauri:build
 ```
 
 ---

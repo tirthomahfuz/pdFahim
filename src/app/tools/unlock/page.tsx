@@ -6,7 +6,9 @@ import { FileUploader } from "@/components/ui/FileUploader"
 import { Button } from "@/components/ui/Button"
 import { Alert } from "@/components/ui/Alert"
 import { Progress } from "@/components/ui/Progress"
+import { FileRiskNotice } from "@/components/ui/FileRiskNotice"
 import { unlockPdf, downloadFile, toUserFacingError, formatBytes, type ProgressUpdate } from "@/lib/pdf-utils"
+import { describeFileRisk } from "@/lib/runtime"
 
 export default function UnlockPdfPage() {
     const [file, setFile] = useState<File | null>(null)
@@ -70,22 +72,30 @@ export default function UnlockPdfPage() {
                     description="Select a password-protected PDF"
                 />
 
-                <div className="rounded-xl border bg-muted/20 p-6 space-y-2">
-                    <label htmlFor="unlockPassword" className="text-sm font-medium">PDF password</label>
-                    <input
-                        id="unlockPassword"
-                        type="password"
-                        autoComplete="current-password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    />
+                {file && <FileRiskNotice message={describeFileRisk(file)} />}
+
+                <div className="rounded-xl border bg-muted/20 p-6 space-y-3">
+                    <div className="space-y-2">
+                        <label htmlFor="unlockPassword" className="text-sm font-medium">PDF password</label>
+                        <input
+                            id="unlockPassword"
+                            type="password"
+                            autoComplete="current-password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Works with standard password-protected PDFs when you know the password.
+                        Some rare encryption variants are not supported in-browser — you&apos;ll get a clear error if so.
+                    </p>
                 </div>
 
                 {error && <Alert variant="error">{error}</Alert>}
                 {success && (
                     <Alert variant="success" title="Download started">
-                        Saved as {success.filename} ({formatBytes(success.size)}).
+                        Saved as {success.filename} ({formatBytes(success.size)}). The unlocked file has no password.
                     </Alert>
                 )}
                 {isProcessing && progress && (

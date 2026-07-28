@@ -34,3 +34,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# tauri / rust
+/src-tauri/target
+
+# playwright
+/test-results
+/playwright-report
+/blob-report

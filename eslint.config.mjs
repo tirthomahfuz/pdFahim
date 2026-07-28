@@ -16,6 +16,10 @@ const eslintConfig = defineConfig([
     "public/pdf.worker.min.mjs",
     "public/sw.js",
     "public/frames/**",
+    // Desktop build artifacts
+    "src-tauri/target/**",
+    "test-results/**",
+    "playwright-report/**",
   ]),
 ]);
 

@@ -24,11 +24,14 @@ This document outlines the planned trajectory for pdFahim. While the MVP provide
 - [x] **Password Protection:** Encrypt PDFs in-browser via `@cantoo/pdf-lib`
 - [x] **Remove Password:** Unlock known-password PDFs without uploading
 
-## Phase 4: Local Application (In Progress)
+## Phase 4: Local Application (Completed)
 - [x] **Progressive Web App (PWA):** Installable app shell with service worker
-- [ ] **Tauri Integration:** Wrap the Next.js static export using Tauri for a native desktop experience
+- [x] **Tauri Integration:** Desktop shell via `src-tauri` + static export (`npm run tauri:dev` / `tauri:build`)
 
 ## Quality & Distribution
 - [x] Automated unit tests for core PDF utilities
-- [x] Open Graph image generation
+- [x] Playwright end-to-end smoke tests
+- [x] Open Graph image (`public/og.png`)
 - [x] README screenshots (generated from running app when available)
+- [x] Lossless + strong compression modes
+- [x] Large-file warnings and cooperative yielding for long jobs

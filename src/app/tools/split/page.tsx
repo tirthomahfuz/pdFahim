@@ -6,7 +6,9 @@ import { FileUploader } from "@/components/ui/FileUploader"
 import { Button } from "@/components/ui/Button"
 import { Alert } from "@/components/ui/Alert"
 import { Progress } from "@/components/ui/Progress"
+import { FileRiskNotice } from "@/components/ui/FileRiskNotice"
 import { splitPdf, downloadFile, getPdfPageCount, toUserFacingError, formatBytes, type ProgressUpdate } from "@/lib/pdf-utils"
+import { describeFileRisk } from "@/lib/runtime"
 
 export default function SplitPdfPage() {
     const [files, setFiles] = useState<File[]>([])
@@ -122,6 +124,8 @@ export default function SplitPdfPage() {
                             maxFiles={1}
                             showPdfPreviews
                         />
+
+                        <FileRiskNotice message={files[0] ? describeFileRisk(files[0], pageCount) : null} />
 
                         <div className="rounded-xl border bg-muted/20 p-6 space-y-4">
                             <div>
