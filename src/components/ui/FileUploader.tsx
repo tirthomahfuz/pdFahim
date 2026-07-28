@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useDropzone, DropzoneOptions } from "react-dropzone"
-import { UploadCloud, File, X } from "lucide-react"
+import { UploadCloud, File, X, ChevronUp, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "./Button"
 
@@ -14,6 +14,7 @@ interface FileUploaderProps extends Omit<DropzoneOptions, "onDrop"> {
     description?: string
     value?: File[]
     onRemove?: (file: File) => void
+    onReorder?: (files: File[]) => void
 }
 
 export function FileUploader({
@@ -24,6 +25,7 @@ export function FileUploader({
     description = "Drag & drop files here, or click to select",
     value = [],
     onRemove,
+    onReorder,
     ...props
 }: FileUploaderProps) {
     const onDrop = React.useCallback(
@@ -39,6 +41,16 @@ export function FileUploader({
         accept,
         ...props,
     })
+
+    const moveFile = (index: number, direction: -1 | 1) => {
+        if (!onReorder) return
+        const target = index + direction
+        if (target < 0 || target >= value.length) return
+        const next = [...value]
+        const [item] = next.splice(index, 1)
+        next.splice(target, 0, item)
+        onReorder(next)
+    }
 
     return (
         <div className={cn("w-full", className)}>
@@ -64,19 +76,46 @@ export function FileUploader({
                 <div className="mt-6 space-y-3">
                     {value.map((file, i) => (
                         <div
-                            key={`${file.name}-${i}`}
+                            key={`${file.name}-${file.size}-${file.lastModified}-${i}`}
                             className="flex items-center justify-between gap-4 rounded-lg border bg-background p-3 shadow-sm"
                         >
-                            <div className="flex items-center gap-3 overflow-hidden">
-                                <div className="rounded-md bg-muted p-2 text-muted-foreground">
+                            <div className="flex items-center gap-3 overflow-hidden min-w-0">
+                                {onReorder && value.length > 1 && (
+                                    <div className="flex flex-col shrink-0">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-muted-foreground"
+                                            onClick={() => moveFile(i, -1)}
+                                            disabled={i === 0}
+                                            type="button"
+                                            aria-label={`Move ${file.name} up`}
+                                        >
+                                            <ChevronUp className="size-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-muted-foreground"
+                                            onClick={() => moveFile(i, 1)}
+                                            disabled={i === value.length - 1}
+                                            type="button"
+                                            aria-label={`Move ${file.name} down`}
+                                        >
+                                            <ChevronDown className="size-4" />
+                                        </Button>
+                                    </div>
+                                )}
+                                <div className="rounded-md bg-muted p-2 text-muted-foreground shrink-0">
                                     <File className="size-4" />
                                 </div>
-                                <div className="grid gap-0.5">
+                                <div className="grid gap-0.5 min-w-0">
                                     <p className="truncate text-sm font-medium leading-none text-foreground">
                                         {file.name}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
                                         {(file.size / 1024 / 1024).toFixed(2)} MB
+                                        {onReorder && value.length > 1 ? ` · #${i + 1}` : ""}
                                     </p>
                                 </div>
                             </div>

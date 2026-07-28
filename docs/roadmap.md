@@ -12,10 +12,12 @@ This document outlines the planned trajectory for pdFahim. While the MVP provide
 - [x] Core Tool: Image to PDF
 - [x] Privacy Policy & About pages
 
-## Phase 2: Enhanced Interactivity (Planned)
-- **Drag-and-Drop Reordering:** Allow users to visually rearrange uploaded files or pages before merging or splitting.
+## Phase 2: Enhanced Interactivity (In Progress)
+- [x] **File Reordering:** Move uploaded files up/down before merge or image-to-PDF conversion.
+- [x] **Split Page Count:** Detect and display PDF page count with validated ranges.
 - **PDF Preview Generation:** Use `pdf.js` to render thumbnails of the first page of uploaded PDFs so users have a visual confirmation of their files.
 - **Metadata Editor:** A tool to view, add, or scrub PDF properties (Title, Author, Subject, Keywords).
+- **Drag-and-Drop Reordering:** Visual drag handles in addition to the current up/down controls.
 
 ## Phase 3: Advanced Client-Side Features (Exploring)
 - **PDF to Image Conversion:** The reverse of our current tool. Extract pages from a PDF to download as standalone JPG or PNG files.

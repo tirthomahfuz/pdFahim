@@ -1,27 +1,61 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { LayoutPanelLeft, Loader2 } from "lucide-react"
 import { FileUploader } from "@/components/ui/FileUploader"
 import { Button } from "@/components/ui/Button"
-import { splitPdf, downloadFile } from "@/lib/pdf-utils"
+import { splitPdf, downloadFile, getPdfPageCount } from "@/lib/pdf-utils"
 
 export default function SplitPdfPage() {
     const [files, setFiles] = useState<File[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [pageCount, setPageCount] = useState<number | null>(null)
+    const [isReadingPages, setIsReadingPages] = useState(false)
     const [startPage, setStartPage] = useState<number>(1)
     const [endPage, setEndPage] = useState<number>(1)
 
     const handleFilesSelected = (newFiles: File[]) => {
-        // Replace current file with new file (only 1 file supported for split)
         setFiles([newFiles[0]])
         setError(null)
+        setPageCount(null)
     }
 
     const handleRemoveFile = () => {
         setFiles([])
+        setPageCount(null)
+        setStartPage(1)
+        setEndPage(1)
     }
+
+    useEffect(() => {
+        if (files.length === 0) return
+
+        let cancelled = false
+        setIsReadingPages(true)
+
+        getPdfPageCount(files[0])
+            .then((count) => {
+                if (cancelled) return
+                setPageCount(count)
+                setStartPage(1)
+                setEndPage(count)
+                setError(null)
+            })
+            .catch((err) => {
+                if (cancelled) return
+                console.error(err)
+                setPageCount(null)
+                setError("Could not read this PDF. It may be damaged or password-protected.")
+            })
+            .finally(() => {
+                if (!cancelled) setIsReadingPages(false)
+            })
+
+        return () => {
+            cancelled = true
+        }
+    }, [files])
 
     const handleSplit = async () => {
         if (files.length === 0) {
@@ -29,8 +63,18 @@ export default function SplitPdfPage() {
             return
         }
 
+        if (pageCount == null) {
+            setError("Still reading the PDF page count. Please wait a moment.")
+            return
+        }
+
         if (startPage > endPage) {
             setError("Start page cannot be greater than end page.")
+            return
+        }
+
+        if (startPage < 1 || endPage > pageCount) {
+            setError(`Choose a range between 1 and ${pageCount}.`)
             return
         }
 
@@ -41,7 +85,7 @@ export default function SplitPdfPage() {
             downloadFile(splitPdfBytes, `split_${startPage}-${endPage}_${files[0].name}`)
         } catch (err) {
             console.error(err)
-            setError("An error occurred while splitting the PDF. Note: Some encrypted PDFs may not be supported.")
+            setError(err instanceof Error ? err.message : "An error occurred while splitting the PDF.")
         } finally {
             setIsProcessing(false)
         }
@@ -80,7 +124,13 @@ export default function SplitPdfPage() {
                         <div className="rounded-xl border bg-muted/20 p-6 space-y-4">
                             <div>
                                 <h3 className="font-medium text-foreground mb-1">Page Range</h3>
-                                <p className="text-sm text-muted-foreground mb-4">Select the pages you want to extract.</p>
+                                <p className="text-sm text-muted-foreground mb-4">
+                                    {isReadingPages && "Reading page count…"}
+                                    {!isReadingPages && pageCount != null && (
+                                        <>This PDF has <span className="font-medium text-foreground">{pageCount}</span> page{pageCount === 1 ? "" : "s"}.</>
+                                    )}
+                                    {!isReadingPages && pageCount == null && "Select a valid PDF to choose a page range."}
+                                </p>
                             </div>
 
                             <div className="flex items-center gap-4">
@@ -90,8 +140,10 @@ export default function SplitPdfPage() {
                                         id="startPage"
                                         type="number"
                                         min={1}
+                                        max={pageCount ?? undefined}
                                         value={startPage}
-                                        onChange={(e) => setStartPage(parseInt(e.target.value) || 1)}
+                                        disabled={pageCount == null}
+                                        onChange={(e) => setStartPage(parseInt(e.target.value, 10) || 1)}
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                     />
                                 </div>
@@ -101,8 +153,10 @@ export default function SplitPdfPage() {
                                         id="endPage"
                                         type="number"
                                         min={startPage}
+                                        max={pageCount ?? undefined}
                                         value={endPage}
-                                        onChange={(e) => setEndPage(parseInt(e.target.value) || 1)}
+                                        disabled={pageCount == null}
+                                        onChange={(e) => setEndPage(parseInt(e.target.value, 10) || 1)}
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                     />
                                 </div>
@@ -119,7 +173,7 @@ export default function SplitPdfPage() {
                             <Button
                                 size="lg"
                                 onClick={handleSplit}
-                                disabled={isProcessing}
+                                disabled={isProcessing || isReadingPages || pageCount == null}
                                 className="w-full md:w-auto"
                             >
                                 {isProcessing ? (

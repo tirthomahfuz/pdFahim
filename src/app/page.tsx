@@ -1,39 +1,39 @@
-import Link from "next/link"
-import { ArrowRight, Layers, LayoutPanelLeft, FileLock2, Image as ImageIcon, ShieldCheck, Zap } from "lucide-react"
-import { Button } from "@/components/ui/Button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card"
+"use client"
 
+import { useRef } from "react"
+import Link from "next/link"
+import { ArrowRight, Layers, LayoutPanelLeft, Minimize2, Image as ImageIcon, ShieldCheck, Zap } from "lucide-react"
+import { Button } from "@/components/ui/Button"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card"
 import { ScrollImageSequence } from "@/components/ui/ScrollImageSequence"
 
 export default function Home() {
+  const heroSectionRef = useRef<HTMLElement>(null)
+
   return (
     <div className="flex flex-col flex-1 bg-zinc-950 text-white min-h-screen">
-      {/* Scroll-Driven Hero Sequence Section */}
-      <section className="relative w-full h-[250vh]">
-        {/* Sticky container that stays fixed while scrolling the 250vh */}
+      <section ref={heroSectionRef} className="relative w-full h-[220vh]">
         <div className="sticky top-0 h-screen w-full overflow-hidden flex flex-col items-center justify-center">
-
-          {/* Background Canvas Animation */}
           <div className="absolute inset-0 w-full h-full z-0">
             <ScrollImageSequence
               frameFolder="/frames/pdf-sequence"
               frameCount={240}
+              frameStep={2}
+              scrollTriggerRef={heroSectionRef}
             />
           </div>
 
-          {/* Foreground Text Content */}
-          <div className="relative z-20 flex flex-col items-center justify-center text-center px-4 -mt-20">
-            <div className="inline-flex max-w-min items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3 py-1 text-sm font-medium backdrop-blur-md mb-8 text-zinc-300">
-              <Zap className="size-4 text-primary" />
-              <span>PDF Toolkit</span>
-            </div>
+          <div className="relative z-20 flex flex-col items-center justify-center text-center px-4 -mt-16">
+            <p className="mb-5 text-sm md:text-base font-semibold tracking-[0.28em] uppercase text-primary">
+              pdFahim
+            </p>
 
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter max-w-5xl mb-6 text-white leading-[1.1]">
               Work with PDFs <span className="text-primary italic font-serif tracking-normal">beautifully</span>
             </h1>
 
             <p className="text-xl md:text-2xl text-zinc-400 max-w-2xl mb-10 leading-relaxed font-light">
-              Merge, split, compress, and convert files through a fast browser-based workflow.
+              Merge, split, compress, and convert files privately in your browser.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 w-full justify-center max-w-sm sm:max-w-none">
@@ -44,7 +44,7 @@ export default function Home() {
               </Button>
               <Button size="lg" variant="outline" className="rounded-full text-base h-12 px-8 border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800 text-white backdrop-blur-sm" asChild>
                 <Link href="/about">
-                  View Features
+                  Why pdFahim
                 </Link>
               </Button>
             </div>
@@ -52,8 +52,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Tools Section */}
-      <section className="w-full py-20 bg-muted/30 border-t">
+      <section className="w-full py-20 bg-background text-foreground border-t">
         <div className="container mx-auto px-4 md:px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Powerful Tools, Simple UI</h2>
@@ -91,10 +90,10 @@ export default function Home() {
               <Card className="h-full transition-all hover:shadow-md hover:border-primary/50 group-hover:-translate-y-1">
                 <CardHeader>
                   <div className="size-12 rounded-lg bg-green-500/10 flex items-center justify-center mb-4 group-hover:bg-green-500 group-hover:text-white transition-colors text-green-500">
-                    <FileLock2 className="size-6" />
+                    <Minimize2 className="size-6" />
                   </div>
                   <CardTitle>Compress PDF</CardTitle>
-                  <CardDescription>Reduce file size while optimizing for the web without losing visual quality.</CardDescription>
+                  <CardDescription>Clean metadata and optimize PDF structure for a smaller download.</CardDescription>
                 </CardHeader>
               </Card>
             </Link>
@@ -114,8 +113,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Value Prop Section */}
-      <section className="w-full py-20">
+      <section className="w-full py-20 bg-background text-foreground">
         <div className="container mx-auto px-4 md:px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
             <div className="space-y-6">

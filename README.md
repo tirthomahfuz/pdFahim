@@ -12,7 +12,7 @@ Engineered with **Next.js**, **Tailwind CSS**, and **pdf-lib**, pdFahim operates
 
 - **Merge PDF:** Consolidate multiple PDF documents into a singular, cohesive file.
 - **Split PDF:** Extract specific pages or partition comprehensive documents into localized segments.
-- **Compress PDF:** Optimize and reduce the file size of PDF documents for efficient distribution by stripping non-essential metadata and unused objects.
+- **Compress PDF:** Clean metadata and optimize PDF structure client-side. Reductions are often modest on image-heavy files.
 - **Image to PDF:** Seamlessly convert JPG and PNG image formats into properly structured PDF documents.
 - **Absolute Privacy:** Functions exclusively on the client-side without relying on backend infrastructure, external APIs, or data uploads.
 - **Modern Interface:** Constructed utilizing Tailwind CSS, featuring a design language inspired by premium software aesthetics.

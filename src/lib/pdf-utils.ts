@@ -1,9 +1,22 @@
 import { PDFDocument } from "pdf-lib"
 
 /**
+ * Returns the page count of a PDF file.
+ */
+export async function getPdfPageCount(file: File): Promise<number> {
+    const arrayBuffer = await file.arrayBuffer()
+    const pdf = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
+    return pdf.getPageCount()
+}
+
+/**
  * Merges multiple PDF files into a single PDF Document.
  */
 export async function mergePdfs(files: File[]): Promise<Uint8Array> {
+    if (files.length < 2) {
+        throw new Error("At least two PDF files are required to merge.")
+    }
+
     const mergedPdf = await PDFDocument.create()
 
     for (const file of files) {
@@ -29,15 +42,35 @@ export async function splitPdf(file: File, startPage: number, endPage: number): 
     const pdf = await PDFDocument.load(arrayBuffer)
 
     const totalPages = pdf.getPageCount()
-    const start = Math.max(1, startPage) - 1
+
+    if (!Number.isInteger(startPage) || !Number.isInteger(endPage)) {
+        throw new Error("Start and end pages must be whole numbers.")
+    }
+
+    if (startPage < 1 || endPage < 1) {
+        throw new Error("Page numbers must be 1 or greater.")
+    }
+
+    if (startPage > endPage) {
+        throw new Error("Start page cannot be greater than end page.")
+    }
+
+    if (startPage > totalPages) {
+        throw new Error(`This PDF only has ${totalPages} page${totalPages === 1 ? "" : "s"}.`)
+    }
+
+    const start = startPage - 1
     const end = Math.min(totalPages, endPage) - 1
 
     const splitPdfDoc = await PDFDocument.create()
+    const pageIndices: number[] = []
 
-    // Extract the specific pages
-    const pageIndices = []
     for (let i = start; i <= end; i++) {
         pageIndices.push(i)
+    }
+
+    if (pageIndices.length === 0) {
+        throw new Error("No pages were selected for splitting.")
     }
 
     const copiedPages = await splitPdfDoc.copyPages(pdf, pageIndices)
@@ -49,45 +82,56 @@ export async function splitPdf(file: File, startPage: number, endPage: number): 
 }
 
 /**
- * Compresses a PDF file.
- * Client-side compression with pdf-lib is limited, but we can resave the document 
- * to remove some unused objects and metadata.
+ * Optimizes a PDF by resaving with object streams and clearing producer metadata.
+ * Client-side pdf-lib cannot recompress embedded images, so reductions are often modest.
  */
 export async function compressPdf(file: File): Promise<Uint8Array> {
     const arrayBuffer = await file.arrayBuffer()
-    // Loading and resaving often reduces size by removing unreferenced objects
     const pdf = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
 
     pdf.setCreator("")
     pdf.setProducer("")
+    pdf.setTitle("")
+    pdf.setSubject("")
+    pdf.setKeywords([])
 
-    // Save with objects stream to compress structure
     return await pdf.save({ useObjectStreams: true })
+}
+
+function resolveImageKind(file: File): "jpg" | "png" {
+    const type = file.type.toLowerCase()
+    const name = file.name.toLowerCase()
+
+    if (type === "image/jpeg" || type === "image/jpg" || name.endsWith(".jpg") || name.endsWith(".jpeg")) {
+        return "jpg"
+    }
+
+    if (type === "image/png" || name.endsWith(".png")) {
+        return "png"
+    }
+
+    throw new Error(`Unsupported image format: ${file.type || file.name}`)
 }
 
 /**
  * Converts multiple image files (JPG/PNG) to a single PDF document.
  */
 export async function imagesToPdf(files: File[]): Promise<Uint8Array> {
+    if (files.length === 0) {
+        throw new Error("At least one image is required.")
+    }
+
     const pdfDoc = await PDFDocument.create()
 
     for (const file of files) {
         const arrayBuffer = await file.arrayBuffer()
-        let image
+        const kind = resolveImageKind(file)
+        const image = kind === "jpg"
+            ? await pdfDoc.embedJpg(arrayBuffer)
+            : await pdfDoc.embedPng(arrayBuffer)
 
-        // Check type and embed accordingly
-        if (file.type === "image/jpeg" || file.type === "image/jpg") {
-            image = await pdfDoc.embedJpg(arrayBuffer)
-        } else if (file.type === "image/png") {
-            image = await pdfDoc.embedPng(arrayBuffer)
-        } else {
-            throw new Error(`Unsupported image format: ${file.type}`)
-        }
-
-        // Create a page with the dimensions of the image
         const page = pdfDoc.addPage([image.width, image.height])
 
-        // Draw the image on the page
         page.drawImage(image, {
             x: 0,
             y: 0,
@@ -103,7 +147,8 @@ export async function imagesToPdf(files: File[]): Promise<Uint8Array> {
  * Helper to trigger file download in browser
  */
 export function downloadFile(data: Uint8Array, filename: string, type = "application/pdf") {
-    const blob = new Blob([data as any], { type })
+    const bytes = new Uint8Array(data)
+    const blob = new Blob([bytes], { type })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url

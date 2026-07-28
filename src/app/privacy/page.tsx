@@ -35,7 +35,7 @@ export default function PrivacyPage() {
 
                     <h2 className="text-xl font-semibold text-foreground pt-4">1. Document Processing</h2>
                     <p>
-                        pdFahim is designed with a "local-first" architecture. When you select a file to merge, split, compress, or convert, the file is loaded directly into your browser's memory. It is never transmitted across the internet to a backend server. Once you close the tab or refresh the page, the file data used by the application is completely purged from your device's active memory.
+                        pdFahim is designed with a local-first architecture. When you select a file to merge, split, compress, or convert, the file is loaded directly into your browser&apos;s memory. It is never transmitted across the internet to a backend server. Once you close the tab or refresh the page, the file data used by the application is completely purged from your device&apos;s active memory.
                     </p>
 
                     <h2 className="text-xl font-semibold text-foreground pt-4">2. Data Collection</h2>
@@ -45,7 +45,7 @@ export default function PrivacyPage() {
 
                     <h2 className="text-xl font-semibold text-foreground pt-4">3. Local Storage and Cookies</h2>
                     <p>
-                        pdFahim does not use internet cookies or your browser's local storage to save any identifiable information.
+                        pdFahim does not use internet cookies or your browser&apos;s local storage to save any identifiable information.
                     </p>
 
                     <h2 className="text-xl font-semibold text-foreground pt-4">4. Third-Party Links</h2>

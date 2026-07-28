@@ -1,10 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { FileLock2, Loader2, CheckCircle } from "lucide-react"
+import { Minimize2, Loader2, CheckCircle } from "lucide-react"
 import { FileUploader } from "@/components/ui/FileUploader"
 import { Button } from "@/components/ui/Button"
 import { compressPdf, downloadFile } from "@/lib/pdf-utils"
+
+function formatBytes(bytes: number) {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / 1024 / 1024).toFixed(2)} MB`
+}
 
 export default function CompressPdfPage() {
     const [file, setFile] = useState<File | null>(null)
@@ -41,24 +47,29 @@ export default function CompressPdfPage() {
                 newSize: compressedPdfBytes.length
             })
 
-            downloadFile(compressedPdfBytes, `compressed_${file.name}`)
+            downloadFile(compressedPdfBytes, `optimized_${file.name}`)
         } catch (err) {
             console.error(err)
-            setError("An error occurred while compressing the PDF.")
+            setError(err instanceof Error ? err.message : "An error occurred while optimizing the PDF.")
         } finally {
             setIsProcessing(false)
         }
     }
 
+    const sizeDelta = success ? success.originalSize - success.newSize : 0
+    const reductionPct = success && success.originalSize > 0
+        ? Math.round((sizeDelta / success.originalSize) * 100)
+        : 0
+
     return (
         <div className="container mx-auto px-4 py-12 max-w-4xl flex-1">
             <div className="mb-8 text-center">
                 <div className="inline-flex size-14 items-center justify-center rounded-2xl bg-green-500/10 text-green-500 mb-4">
-                    <FileLock2 className="size-7" />
+                    <Minimize2 className="size-7" />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight mb-2">Compress PDF</h1>
                 <p className="text-muted-foreground">
-                    Reduce the file size of your PDF directly in your browser. Fast, free, and private.
+                    Clean metadata and optimize PDF structure in your browser. Image-heavy files may only shrink a little.
                 </p>
             </div>
 
@@ -68,7 +79,7 @@ export default function CompressPdfPage() {
                         onFilesSelected={handleFilesSelected}
                         accept={{ "application/pdf": [".pdf"] }}
                         maxFiles={1}
-                        description="Select a PDF to compress"
+                        description="Select a PDF to optimize"
                     />
                 ) : (
                     <div className="space-y-6">
@@ -85,13 +96,26 @@ export default function CompressPdfPage() {
                                 <div className="flex items-start gap-4">
                                     <CheckCircle className="size-5 text-green-600 mt-0.5" />
                                     <div>
-                                        <h3 className="font-semibold text-green-800">Compression Complete</h3>
+                                        <h3 className="font-semibold text-green-800">Optimization Complete</h3>
                                         <p className="text-sm text-green-700 mt-1">
-                                            Reduced from {(success.originalSize / 1024 / 1024).toFixed(2)} MB to {(success.newSize / 1024 / 1024).toFixed(2)} MB
-                                            ({Math.round((1 - success.newSize / success.originalSize) * 100)}% reduction).
+                                            {sizeDelta > 0 ? (
+                                                <>
+                                                    Reduced from {formatBytes(success.originalSize)} to {formatBytes(success.newSize)}
+                                                    {" "}({reductionPct}% smaller).
+                                                </>
+                                            ) : sizeDelta < 0 ? (
+                                                <>
+                                                    Result is {formatBytes(success.newSize)} vs original {formatBytes(success.originalSize)}.
+                                                    Structure was cleaned, but this file did not get smaller.
+                                                </>
+                                            ) : (
+                                                <>
+                                                    Size stayed at {formatBytes(success.newSize)}. Metadata was cleaned and the file was re-saved.
+                                                </>
+                                            )}
                                         </p>
                                         <p className="text-xs text-green-600 mt-2">
-                                            Note: Client-side compression mainly removes unused objects. Highly image-heavy PDFs might not shrink significantly.
+                                            Client-side optimization mainly removes unused objects and metadata. Embedded images are left as-is.
                                         </p>
                                     </div>
                                 </div>
@@ -114,10 +138,10 @@ export default function CompressPdfPage() {
                                 {isProcessing ? (
                                     <>
                                         <Loader2 className="mr-2 size-4 animate-spin" />
-                                        Compressing...
+                                        Optimizing...
                                     </>
                                 ) : (
-                                    success ? "Compress Again" : "Compress PDF"
+                                    success ? "Optimize Again" : "Optimize PDF"
                                 )}
                             </Button>
                         </div>

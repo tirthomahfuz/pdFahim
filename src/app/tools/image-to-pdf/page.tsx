@@ -33,7 +33,7 @@ export default function ImageToPdfPage() {
             downloadFile(pdfBytes, "converted_images.pdf")
         } catch (err) {
             console.error(err)
-            setError("An error occurred while converting images. Ensure they are valid JPG or PNG formats.")
+            setError(err instanceof Error ? err.message : "An error occurred while converting images. Ensure they are valid JPG or PNG formats.")
         } finally {
             setIsProcessing(false)
         }
@@ -47,7 +47,7 @@ export default function ImageToPdfPage() {
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight mb-2">Image to PDF</h1>
                 <p className="text-muted-foreground">
-                    Convert JPG or PNG images into a PDF document. Your images never leave your browser.
+                    Convert JPG or PNG images into a PDF document. Reorder images before creating the file.
                 </p>
             </div>
 
@@ -60,6 +60,7 @@ export default function ImageToPdfPage() {
                     }}
                     value={files}
                     onRemove={handleRemoveFile}
+                    onReorder={setFiles}
                     description="Supports JPG and PNG images"
                 />
 

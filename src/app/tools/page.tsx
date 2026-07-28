@@ -1,6 +1,6 @@
 import Link from "next/link"
-import { Layers, LayoutPanelLeft, FileLock2, Image as ImageIcon } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card"
+import { Layers, LayoutPanelLeft, Minimize2, Image as ImageIcon } from "lucide-react"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card"
 
 export default function ToolsDashboard() {
     return (
@@ -49,12 +49,12 @@ export default function ToolsDashboard() {
                     <Card className="h-full transition-all hover:shadow-md hover:border-primary/50">
                         <CardHeader className="flex flex-row items-start gap-4 space-y-0">
                             <div className="size-10 shrink-0 rounded-lg bg-green-500/10 flex items-center justify-center text-green-500 group-hover:bg-green-500 group-hover:text-white transition-colors">
-                                <FileLock2 className="size-5" />
+                                <Minimize2 className="size-5" />
                             </div>
                             <div>
                                 <CardTitle className="mb-1.5">Compress PDF</CardTitle>
                                 <CardDescription>
-                                    Reduce your PDF file size by stripping metadata and optimizing streams.
+                                    Clean metadata and optimize PDF structure for a smaller download.
                                 </CardDescription>
                             </div>
                         </CardHeader>

@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { FileDown, Github } from "lucide-react"
 
+const REPO_URL = "https://github.com/tirthomahfuz/pdFahim"
+
 export function Footer() {
     return (
         <footer className="border-t bg-muted/20">
@@ -17,7 +19,7 @@ export function Footer() {
                             A clean, modern, browser-based PDF toolkit. No backend, no accounts, just fast local processing.
                         </p>
                         <div className="flex items-center gap-4 pt-2">
-                            <a href="https://github.com/shahriyar" target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">
+                            <a href={REPO_URL} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">
                                 <Github className="size-5" />
                                 <span className="sr-only">GitHub</span>
                             </a>
@@ -52,7 +54,7 @@ export function Footer() {
                                 <Link href="/privacy" className="text-muted-foreground hover:text-foreground">Privacy Policy</Link>
                             </li>
                             <li>
-                                <a href="https://github.com/shahriyar" target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">Source Code</a>
+                                <a href={REPO_URL} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">Source Code</a>
                             </li>
                         </ul>
                     </div>

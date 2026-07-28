@@ -31,7 +31,7 @@
 ### 4.3 Compress PDF
 - Accept a single `.pdf` file.
 - Client-side optimization (removing unreferenced objects, metadata).
-- Display original vs. compressed size.
+- Display original vs. optimized size, including honest messaging when size does not shrink.
 - Auto-download result.
 
 ### 4.4 Image to PDF

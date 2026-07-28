@@ -5,7 +5,6 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 
-// Register ScrollTrigger, a core plugin for GSAP
 if (typeof window !== 'undefined') {
     gsap.registerPlugin(ScrollTrigger);
 }
@@ -15,7 +14,11 @@ interface ScrollImageSequenceProps {
     framePrefix?: string;
     frameExtension?: string;
     frameCount: number;
+    /** Load every Nth source frame to cut bandwidth (default 2 → ~half the assets). */
+    frameStep?: number;
     canvasClassName?: string;
+    /** Optional outer scroll section used for scrubbing (avoids nested GSAP pin). */
+    scrollTriggerRef?: React.RefObject<HTMLElement | null>;
 }
 
 export function ScrollImageSequence({
@@ -23,161 +26,203 @@ export function ScrollImageSequence({
     framePrefix = 'ezgif-frame-',
     frameExtension = '.jpg',
     frameCount = 240,
+    frameStep = 2,
     canvasClassName = '',
+    scrollTriggerRef,
 }: ScrollImageSequenceProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const [images, setImages] = useState<HTMLImageElement[]>([]);
+    const [images, setImages] = useState<(HTMLImageElement | null)[]>([]);
     const [loadedFrames, setLoadedFrames] = useState(0);
-    const [isFullyLoaded, setIsFullyLoaded] = useState(false);
-
-    // GSAP animation state for frame index
+    const [isReady, setIsReady] = useState(false);
     const playheadRef = useRef({ frame: 0 });
 
-    // 1. Preload all images
-    useEffect(() => {
-        let loadedCount = 0;
-        const loadedImages: HTMLImageElement[] = [];
-
-        for (let i = 1; i <= frameCount; i++) {
-            const img = new Image();
-            // Format number to 3 digits (e.g., 001, 045, 240)
-            const formattedNumber = i.toString().padStart(3, '0');
-            const src = `${frameFolder}/${framePrefix}${formattedNumber}${frameExtension}`;
-
-            img.src = src;
-            img.onload = () => {
-                loadedCount++;
-                setLoadedFrames(loadedCount);
-                if (loadedCount === frameCount) {
-                    setIsFullyLoaded(true);
-                }
-            };
-
-            loadedImages.push(img);
+    const frameIndexes = React.useMemo(() => {
+        const step = Math.max(1, frameStep);
+        const indexes: number[] = [];
+        for (let i = 1; i <= frameCount; i += step) {
+            indexes.push(i);
         }
-        setImages(loadedImages);
+        if (indexes[indexes.length - 1] !== frameCount) {
+            indexes.push(frameCount);
+        }
+        return indexes;
+    }, [frameCount, frameStep]);
 
-        // Cleanup when unmounting
+    // 1. Preload selected frames; count errors so loading cannot hang forever
+    useEffect(() => {
+        let settled = 0;
+        let hasDrawable = false;
+        let cancelled = false;
+        const loadedImages: (HTMLImageElement | null)[] = new Array(frameIndexes.length).fill(null);
+
+        const markSettled = (success: boolean) => {
+            settled += 1;
+            if (success) hasDrawable = true;
+            if (cancelled) return;
+            setLoadedFrames(settled);
+            // Ready once any frame paints, or once every request has settled (even if all fail)
+            if (hasDrawable || settled === frameIndexes.length) {
+                setIsReady(true);
+            }
+        };
+
+        frameIndexes.forEach((frameNumber, index) => {
+            const img = new Image();
+            const formattedNumber = frameNumber.toString().padStart(3, '0');
+            img.src = `${frameFolder}/${framePrefix}${formattedNumber}${frameExtension}`;
+            img.onload = () => {
+                loadedImages[index] = img;
+                if (!cancelled) {
+                    setImages([...loadedImages]);
+                }
+                markSettled(true);
+            };
+            img.onerror = () => {
+                loadedImages[index] = null;
+                markSettled(false);
+            };
+        });
+
         return () => {
+            cancelled = true;
             loadedImages.forEach((img) => {
+                if (!img) return;
                 img.onload = null;
+                img.onerror = null;
                 img.src = '';
             });
         };
-    }, [frameCount, frameFolder, framePrefix, frameExtension]);
+    }, [frameIndexes, frameFolder, framePrefix, frameExtension]);
 
-    // 2. Draw frame function
+    const getDrawableFrame = useCallback(
+        (index: number): HTMLImageElement | null => {
+            if (images.length === 0) return null;
+            const clamped = Math.max(0, Math.min(images.length - 1, Math.round(index)));
+            if (images[clamped]) return images[clamped];
+
+            for (let distance = 1; distance < images.length; distance++) {
+                const before = clamped - distance;
+                const after = clamped + distance;
+                if (before >= 0 && images[before]) return images[before];
+                if (after < images.length && images[after]) return images[after];
+            }
+            return null;
+        },
+        [images]
+    );
+
     const renderFrame = useCallback(
         (index: number) => {
             const canvas = canvasRef.current;
             const ctx = canvas?.getContext('2d');
-            if (!canvas || !ctx || images.length === 0 || !images[index]) return;
+            const img = getDrawableFrame(index);
+            if (!canvas || !ctx || !img || !img.complete || img.naturalWidth === 0) return;
 
-            const img = images[index];
-
-            // Standardize canvas dimensions logic
             const targetWidth = window.innerWidth;
             const targetHeight = window.innerHeight;
 
-            // Update canvas width/height to match window exactly for crisp rendering
             canvas.width = targetWidth;
             canvas.height = targetHeight;
 
             const imgRatio = img.width / img.height;
             const canvasRatio = targetWidth / targetHeight;
 
-            let drawWidth, drawHeight, offsetX, offsetY;
+            let drawWidth: number;
+            let drawHeight: number;
+            let offsetX: number;
+            let offsetY: number;
 
-            // "Cover" behavior for canvas drawing
             if (canvasRatio > imgRatio) {
-                // Canvas is wider than image (scale image by width)
                 drawWidth = targetWidth;
                 drawHeight = targetWidth / imgRatio;
                 offsetX = 0;
-                offsetY = (targetHeight - drawHeight) / 2; // Center vertically
+                offsetY = (targetHeight - drawHeight) / 2;
             } else {
-                // Canvas is taller than image (scale image by height)
                 drawHeight = targetHeight;
                 drawWidth = targetHeight * imgRatio;
-                offsetX = (targetWidth - drawWidth) / 2; // Center horizontally
+                offsetX = (targetWidth - drawWidth) / 2;
                 offsetY = 0;
             }
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
         },
-        [images]
+        [getDrawableFrame]
     );
 
-    // 3. Render initial frame when first loaded or resized
     useEffect(() => {
-        if (isFullyLoaded) {
-            renderFrame(playheadRef.current.frame);
-        }
+        if (!isReady) return;
+
+        renderFrame(playheadRef.current.frame);
 
         const handleResize = () => {
-            if (isFullyLoaded) renderFrame(playheadRef.current.frame);
+            renderFrame(playheadRef.current.frame);
         };
 
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
-    }, [isFullyLoaded, renderFrame]);
+    }, [isReady, renderFrame]);
 
-    // 4. GSAP ScrollTrigger Sequence
+    // Scrub against the outer section — do not pin (parent already sticky)
     useGSAP(
         () => {
-            // Don't setup ScrollTrigger until fully loaded to avoid incorrect positioning
-            if (!isFullyLoaded || !containerRef.current || !canvasRef.current) return;
+            if (!isReady || !containerRef.current) return;
+
+            const triggerEl = scrollTriggerRef?.current ?? containerRef.current.parentElement;
+            if (!triggerEl) return;
+
+            const animation = gsap.to(playheadRef.current, {
+                frame: Math.max(0, images.length - 1),
+                snap: 'frame',
+                ease: 'none',
+                onUpdate: () => {
+                    renderFrame(playheadRef.current.frame);
+                },
+            });
 
             const trigger = ScrollTrigger.create({
-                trigger: containerRef.current,
+                trigger: triggerEl,
                 start: 'top top',
-                end: '+=250%', // 250vh scroll duration
-                pin: true,     // Pin the entire container
-                scrub: 0.1,    // Smooth scrubbing
-                animation: gsap.to(playheadRef.current, {
-                    frame: frameCount - 1, // go to the last frame index
-                    snap: 'frame', // lock to whole numbers
-                    ease: 'none',
-                    onUpdate: () => {
-                        renderFrame(playheadRef.current.frame);
-                    },
-                }),
+                end: 'bottom bottom',
+                scrub: 0.15,
+                animation,
             });
 
             return () => {
                 trigger.kill();
+                animation.kill();
             };
         },
-        { dependencies: [isFullyLoaded, frameCount, renderFrame], scope: containerRef }
+        { dependencies: [isReady, images.length, renderFrame, scrollTriggerRef], scope: containerRef }
     );
 
+    const progress = frameIndexes.length
+        ? Math.min(100, Math.round((loadedFrames / frameIndexes.length) * 100))
+        : 0;
+
     return (
-        <div ref={containerRef} className="relative w-full h-[100vh] overflow-hidden bg-zinc-950">
-            {/* Loading state */}
-            {!isFullyLoaded && (
+        <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-zinc-950">
+            {!isReady && (
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950 text-white">
                     <div className="mb-4 text-sm font-medium tracking-wide flex items-center gap-2">
-                        <span className="animate-pulse size-2 bg-primary rounded-full block"></span>
-                        Loading High-Res Visuals
+                        <span className="animate-pulse size-2 bg-primary rounded-full block" />
+                        Loading visuals
                     </div>
                     <div className="w-48 h-1 overflow-hidden bg-zinc-800 rounded-full">
                         <div
                             className="h-full bg-primary transition-all duration-300 ease-out"
-                            style={{ width: `${(loadedFrames / frameCount) * 100}%` }}
+                            style={{ width: `${progress}%` }}
                         />
                     </div>
                 </div>
             )}
 
-            {/* Canvas container - strictly fills viewport */}
             <canvas
                 ref={canvasRef}
-                className={`absolute inset-0 w-full h-full object-cover z-0 opacity-80 mix-blend-screen transition-opacity duration-1000 ${isFullyLoaded ? 'opacity-90' : 'opacity-0'} ${canvasClassName}`}
+                className={`absolute inset-0 w-full h-full object-cover z-0 mix-blend-screen transition-opacity duration-700 ${isReady ? 'opacity-90' : 'opacity-0'} ${canvasClassName}`}
             />
 
-            {/* Dynamic gradient overlay to ensure text readability */}
             <div className="absolute inset-0 z-10 bg-gradient-to-b from-zinc-950/80 via-transparent to-zinc-950/90 pointer-events-none" />
             <div className="absolute inset-0 z-10 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(9,9,11,0.8)_100%)] pointer-events-none" />
         </div>

@@ -33,7 +33,7 @@ export default function MergePdfPage() {
             downloadFile(mergedPdfBytes, "merged_document.pdf")
         } catch (err) {
             console.error(err)
-            setError("An error occurred while merging the PDF files.")
+            setError(err instanceof Error ? err.message : "An error occurred while merging the PDF files.")
         } finally {
             setIsProcessing(false)
         }
@@ -47,7 +47,7 @@ export default function MergePdfPage() {
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight mb-2">Merge PDF Files</h1>
                 <p className="text-muted-foreground">
-                    Combine multiple PDFs into a single document. 100% free and processes locally in your browser.
+                    Combine multiple PDFs into a single document. Reorder files before merging. Processing stays in your browser.
                 </p>
             </div>
 
@@ -57,6 +57,7 @@ export default function MergePdfPage() {
                     accept={{ "application/pdf": [".pdf"] }}
                     value={files}
                     onRemove={handleRemoveFile}
+                    onReorder={setFiles}
                     description="Only PDF files are supported"
                 />
 
@@ -69,7 +70,8 @@ export default function MergePdfPage() {
                 {files.length > 0 && (
                     <div className="mt-8 flex flex-col md:flex-row items-center justify-between gap-4 border-t pt-6">
                         <p className="text-sm text-muted-foreground">
-                            {files.length} file{files.length !== 1 && "s"} selected.
+                            {files.length} file{files.length !== 1 && "s"} selected
+                            {files.length === 1 ? " — add at least one more to merge." : "."}
                         </p>
                         <div className="flex gap-3 w-full md:w-auto">
                             <Button
