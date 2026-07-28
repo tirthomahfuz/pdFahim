@@ -10,6 +10,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
         "/tools/split",
         "/tools/compress",
         "/tools/image-to-pdf",
+        "/tools/watermark",
+        "/tools/protect",
+        "/tools/unlock",
         "/about",
         "/privacy",
     ]

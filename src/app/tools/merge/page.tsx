@@ -5,22 +5,19 @@ import { Layers, Loader2 } from "lucide-react"
 import { FileUploader } from "@/components/ui/FileUploader"
 import { Button } from "@/components/ui/Button"
 import { Alert } from "@/components/ui/Alert"
-import { mergePdfs, downloadFile, toUserFacingError, formatBytes } from "@/lib/pdf-utils"
+import { Progress } from "@/components/ui/Progress"
+import { mergePdfs, downloadFile, toUserFacingError, formatBytes, type ProgressUpdate } from "@/lib/pdf-utils"
 
 export default function MergePdfPage() {
     const [files, setFiles] = useState<File[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<{ filename: string; size: number } | null>(null)
+    const [progress, setProgress] = useState<ProgressUpdate | null>(null)
 
     const handleFilesSelected = (newFiles: File[]) => {
         setFiles((prev) => [...prev, ...newFiles])
         setError(null)
-        setSuccess(null)
-    }
-
-    const handleRemoveFile = (fileToRemove: File) => {
-        setFiles((prev) => prev.filter((f) => f !== fileToRemove))
         setSuccess(null)
     }
 
@@ -34,7 +31,8 @@ export default function MergePdfPage() {
             setIsProcessing(true)
             setError(null)
             setSuccess(null)
-            const mergedPdfBytes = await mergePdfs(files)
+            setProgress({ current: 0, total: files.length, message: "Starting…" })
+            const mergedPdfBytes = await mergePdfs(files, setProgress)
             const result = downloadFile(mergedPdfBytes, "merged_document.pdf")
             setSuccess(result)
         } catch (err) {
@@ -42,8 +40,13 @@ export default function MergePdfPage() {
             setError(toUserFacingError(err, "An error occurred while merging the PDF files."))
         } finally {
             setIsProcessing(false)
+            setProgress(null)
         }
     }
+
+    const progressValue = progress && progress.total > 0
+        ? (progress.current / progress.total) * 100
+        : 0
 
     return (
         <div className="container mx-auto px-4 py-12 max-w-4xl flex-1">
@@ -53,7 +56,7 @@ export default function MergePdfPage() {
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight mb-2">Merge PDF Files</h1>
                 <p className="text-muted-foreground">
-                    Combine multiple PDFs into a single document. Reorder files before merging. Processing stays in your browser.
+                    Combine multiple PDFs into a single document. Drag to reorder. Processing stays in your browser.
                 </p>
             </div>
 
@@ -62,24 +65,26 @@ export default function MergePdfPage() {
                     onFilesSelected={handleFilesSelected}
                     accept={{ "application/pdf": [".pdf"] }}
                     value={files}
-                    onRemove={handleRemoveFile}
+                    onRemove={(fileToRemove) => {
+                        setFiles((prev) => prev.filter((f) => f !== fileToRemove))
+                        setSuccess(null)
+                    }}
                     onReorder={(next) => {
                         setFiles(next)
                         setSuccess(null)
                     }}
+                    showPdfPreviews
                     description="Only PDF files are supported"
                 />
 
-                {error && (
-                    <Alert className="mt-6" variant="error">
-                        {error}
-                    </Alert>
-                )}
-
+                {error && <Alert className="mt-6" variant="error">{error}</Alert>}
                 {success && (
                     <Alert className="mt-6" variant="success" title="Download started">
-                        Saved as {success.filename} ({formatBytes(success.size)}). Check your downloads folder if the file does not appear.
+                        Saved as {success.filename} ({formatBytes(success.size)}).
                     </Alert>
+                )}
+                {isProcessing && progress && (
+                    <Progress className="mt-6" value={progressValue} label={progress.message} />
                 )}
 
                 {files.length > 0 && (

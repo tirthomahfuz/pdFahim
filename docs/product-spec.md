@@ -30,14 +30,22 @@
 
 ### 4.3 Compress PDF
 - Accept a single `.pdf` file.
-- Client-side optimization (removing unreferenced objects, metadata).
-- Display original vs. optimized size, including honest messaging when size does not shrink.
+- Rasterize pages via PDF.js and rebuild with JPEG quality presets (high/medium/low).
+- Show progress and original vs compressed size.
 - Auto-download result.
 
 ### 4.4 Image to PDF
 - Accept multiple `.jpg`, `.jpeg`, or `.png` images.
 - Create a new PDF document and map each image to a newly created page matching the image dimensions.
 - Auto-download result.
+
+### 4.5 Watermark PDF
+- Accept a single `.pdf` file and custom watermark text.
+- Draw diagonal text across each page with opacity/size controls.
+
+### 4.6 Protect / Unlock PDF
+- Encrypt a PDF with a user password.
+- Unlock a known-password PDF and save an unencrypted copy.
 
 ## 5. Non-Scope Characteristics (Explicitly Forbidden)
 - No user accounts or authentication.

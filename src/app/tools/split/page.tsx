@@ -5,7 +5,8 @@ import { LayoutPanelLeft, Loader2 } from "lucide-react"
 import { FileUploader } from "@/components/ui/FileUploader"
 import { Button } from "@/components/ui/Button"
 import { Alert } from "@/components/ui/Alert"
-import { splitPdf, downloadFile, getPdfPageCount, toUserFacingError, formatBytes } from "@/lib/pdf-utils"
+import { Progress } from "@/components/ui/Progress"
+import { splitPdf, downloadFile, getPdfPageCount, toUserFacingError, formatBytes, type ProgressUpdate } from "@/lib/pdf-utils"
 
 export default function SplitPdfPage() {
     const [files, setFiles] = useState<File[]>([])
@@ -14,8 +15,9 @@ export default function SplitPdfPage() {
     const [success, setSuccess] = useState<{ filename: string; size: number } | null>(null)
     const [pageCount, setPageCount] = useState<number | null>(null)
     const [isReadingPages, setIsReadingPages] = useState(false)
-    const [startPage, setStartPage] = useState<number>(1)
-    const [endPage, setEndPage] = useState<number>(1)
+    const [startPage, setStartPage] = useState(1)
+    const [endPage, setEndPage] = useState(1)
+    const [progress, setProgress] = useState<ProgressUpdate | null>(null)
 
     const handleFilesSelected = (newFiles: File[]) => {
         setFiles([newFiles[0]])
@@ -24,17 +26,8 @@ export default function SplitPdfPage() {
         setPageCount(null)
     }
 
-    const handleRemoveFile = () => {
-        setFiles([])
-        setPageCount(null)
-        setStartPage(1)
-        setEndPage(1)
-        setSuccess(null)
-    }
-
     useEffect(() => {
         if (files.length === 0) return
-
         let cancelled = false
         setIsReadingPages(true)
 
@@ -48,9 +41,8 @@ export default function SplitPdfPage() {
             })
             .catch((err) => {
                 if (cancelled) return
-                console.error(err)
                 setPageCount(null)
-                setError(toUserFacingError(err, "Could not read this PDF. It may be damaged or password-protected."))
+                setError(toUserFacingError(err, "Could not read this PDF."))
             })
             .finally(() => {
                 if (!cancelled) setIsReadingPages(false)
@@ -66,18 +58,11 @@ export default function SplitPdfPage() {
             setError("Please select a PDF file.")
             return
         }
-
         if (pageCount == null) {
             setError("Still reading the PDF page count. Please wait a moment.")
             return
         }
-
-        if (startPage > endPage) {
-            setError("Start page cannot be greater than end page.")
-            return
-        }
-
-        if (startPage < 1 || endPage > pageCount) {
+        if (startPage > endPage || startPage < 1 || endPage > pageCount) {
             setError(`Choose a range between 1 and ${pageCount}.`)
             return
         }
@@ -86,7 +71,7 @@ export default function SplitPdfPage() {
             setIsProcessing(true)
             setError(null)
             setSuccess(null)
-            const splitPdfBytes = await splitPdf(files[0], startPage, endPage)
+            const splitPdfBytes = await splitPdf(files[0], startPage, endPage, setProgress)
             const result = downloadFile(splitPdfBytes, `split_${startPage}-${endPage}_${files[0].name}`)
             setSuccess(result)
         } catch (err) {
@@ -94,8 +79,13 @@ export default function SplitPdfPage() {
             setError(toUserFacingError(err, "An error occurred while splitting the PDF."))
         } finally {
             setIsProcessing(false)
+            setProgress(null)
         }
     }
+
+    const progressValue = progress && progress.total > 0
+        ? (progress.current / progress.total) * 100
+        : 0
 
     return (
         <div className="container mx-auto px-4 py-12 max-w-4xl flex-1">
@@ -104,9 +94,7 @@ export default function SplitPdfPage() {
                     <LayoutPanelLeft className="size-7" />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight mb-2">Split PDF Document</h1>
-                <p className="text-muted-foreground">
-                    Extract a page range from your PDF file. 100% private.
-                </p>
+                <p className="text-muted-foreground">Extract a page range from your PDF file. 100% private.</p>
             </div>
 
             <div className="bg-card border rounded-2xl p-6 md:p-8 shadow-sm">
@@ -115,6 +103,7 @@ export default function SplitPdfPage() {
                         onFilesSelected={handleFilesSelected}
                         accept={{ "application/pdf": [".pdf"] }}
                         maxFiles={1}
+                        showPdfPreviews
                         description="Select a single PDF file to split"
                     />
                 ) : (
@@ -123,8 +112,15 @@ export default function SplitPdfPage() {
                             onFilesSelected={handleFilesSelected}
                             accept={{ "application/pdf": [".pdf"] }}
                             value={files}
-                            onRemove={handleRemoveFile}
+                            onRemove={() => {
+                                setFiles([])
+                                setPageCount(null)
+                                setStartPage(1)
+                                setEndPage(1)
+                                setSuccess(null)
+                            }}
                             maxFiles={1}
+                            showPdfPreviews
                         />
 
                         <div className="rounded-xl border bg-muted/20 p-6 space-y-4">
@@ -138,7 +134,6 @@ export default function SplitPdfPage() {
                                     {!isReadingPages && pageCount == null && "Select a valid PDF to choose a page range."}
                                 </p>
                             </div>
-
                             <div className="flex items-center gap-4">
                                 <div className="flex-1 space-y-2">
                                     <label htmlFor="startPage" className="text-sm font-medium">From Page</label>
@@ -150,7 +145,7 @@ export default function SplitPdfPage() {
                                         value={startPage}
                                         disabled={pageCount == null}
                                         onChange={(e) => setStartPage(parseInt(e.target.value, 10) || 1)}
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                                     />
                                 </div>
                                 <div className="flex-1 space-y-2">
@@ -163,20 +158,20 @@ export default function SplitPdfPage() {
                                         value={endPage}
                                         disabled={pageCount == null}
                                         onChange={(e) => setEndPage(parseInt(e.target.value, 10) || 1)}
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                                     />
                                 </div>
                             </div>
                         </div>
 
-                        {error && (
-                            <Alert variant="error">{error}</Alert>
-                        )}
-
+                        {error && <Alert variant="error">{error}</Alert>}
                         {success && (
                             <Alert variant="success" title="Download started">
-                                Saved as {success.filename} ({formatBytes(success.size)}). Check your downloads folder if the file does not appear.
+                                Saved as {success.filename} ({formatBytes(success.size)}).
                             </Alert>
+                        )}
+                        {isProcessing && progress && (
+                            <Progress value={progressValue} label={progress.message} />
                         )}
 
                         <div className="flex justify-end pt-4 border-t">

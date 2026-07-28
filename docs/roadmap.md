@@ -12,19 +12,23 @@ This document outlines the planned trajectory for pdFahim. While the MVP provide
 - [x] Core Tool: Image to PDF
 - [x] Privacy Policy & About pages
 
-## Phase 2: Enhanced Interactivity (In Progress)
-- [x] **File Reordering:** Move uploaded files up/down before merge or image-to-PDF conversion.
-- [x] **Split Page Count:** Detect and display PDF page count with validated ranges.
-- **PDF Preview Generation:** Use `pdf.js` to render thumbnails of the first page of uploaded PDFs so users have a visual confirmation of their files.
-- **Metadata Editor:** A tool to view, add, or scrub PDF properties (Title, Author, Subject, Keywords).
-- **Drag-and-Drop Reordering:** Visual drag handles in addition to the current up/down controls.
+## Phase 2: Enhanced Interactivity (Completed)
+- [x] **File Reordering:** Drag-and-drop reorder for merge and image-to-PDF queues
+- [x] **PDF Preview Generation:** First-page thumbnails via `pdf.js`
+- [x] **Split Page Count:** Detect and display PDF page count with validated ranges
+- [x] **Progress UI:** Progress feedback for multi-step local jobs
 
-## Phase 3: Advanced Client-Side Features (Exploring)
-- **PDF to Image Conversion:** The reverse of our current tool. Extract pages from a PDF to download as standalone JPG or PNG files.
-- **Watermarking:** Add custom text or image watermarks across PDF pages with opacity controls.
-- **Password Protection:** Encrypt and password-protect a PDF document securely in the browser.
-- **Remove Password:** Strip passwords from known-password PDFs without transmitting the file or password.
+## Phase 3: Advanced Client-Side Features (Completed)
+- [x] **Real Compression:** Rasterize pages to JPEG with quality presets
+- [x] **Watermarking:** Custom text watermarks with opacity/size controls
+- [x] **Password Protection:** Encrypt PDFs in-browser via `@cantoo/pdf-lib`
+- [x] **Remove Password:** Unlock known-password PDFs without uploading
 
-## Phase 4: Local Application (Long-Term)
-- **Progressive Web App (PWA):** Configure service workers to allow users to install pdFahim directly as a desktop or mobile application.
-- **Tauri Integration:** Wrap the Next.js static export using Tauri for a native, lightweight, cross-platform desktop application experience.
+## Phase 4: Local Application (In Progress)
+- [x] **Progressive Web App (PWA):** Installable app shell with service worker
+- [ ] **Tauri Integration:** Wrap the Next.js static export using Tauri for a native desktop experience
+
+## Quality & Distribution
+- [x] Automated unit tests for core PDF utilities
+- [x] Open Graph image generation
+- [x] README screenshots (generated from running app when available)

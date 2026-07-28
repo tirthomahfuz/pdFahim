@@ -18,5 +18,5 @@ export const siteConfig = {
     name: "pdFahim",
     title: "pdFahim — Modern Browser-based PDF Toolkit",
     description:
-        "Merge, split, compress, and convert PDFs privately in your browser. Free, local-first, no uploads.",
+        "Merge, split, compress, convert, watermark, and protect PDFs privately in your browser. Free, local-first, no uploads.",
 }

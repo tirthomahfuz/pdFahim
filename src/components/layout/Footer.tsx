@@ -29,18 +29,13 @@ export function Footer() {
                     <div className="space-y-4 md:col-start-3">
                         <h4 className="text-sm font-semibold">Tools</h4>
                         <ul className="space-y-2.5 text-sm">
-                            <li>
-                                <Link href="/tools/merge" className="text-muted-foreground hover:text-foreground">Merge PDF</Link>
-                            </li>
-                            <li>
-                                <Link href="/tools/split" className="text-muted-foreground hover:text-foreground">Split PDF</Link>
-                            </li>
-                            <li>
-                                <Link href="/tools/compress" className="text-muted-foreground hover:text-foreground">Compress PDF</Link>
-                            </li>
-                            <li>
-                                <Link href="/tools/image-to-pdf" className="text-muted-foreground hover:text-foreground">Image to PDF</Link>
-                            </li>
+                            <li><Link href="/tools/merge" className="text-muted-foreground hover:text-foreground">Merge PDF</Link></li>
+                            <li><Link href="/tools/split" className="text-muted-foreground hover:text-foreground">Split PDF</Link></li>
+                            <li><Link href="/tools/compress" className="text-muted-foreground hover:text-foreground">Compress PDF</Link></li>
+                            <li><Link href="/tools/image-to-pdf" className="text-muted-foreground hover:text-foreground">Image to PDF</Link></li>
+                            <li><Link href="/tools/watermark" className="text-muted-foreground hover:text-foreground">Watermark</Link></li>
+                            <li><Link href="/tools/protect" className="text-muted-foreground hover:text-foreground">Protect PDF</Link></li>
+                            <li><Link href="/tools/unlock" className="text-muted-foreground hover:text-foreground">Unlock PDF</Link></li>
                         </ul>
                     </div>
 

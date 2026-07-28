@@ -10,10 +10,13 @@ Engineered with **Next.js**, **Tailwind CSS**, and **pdf-lib**, pdFahim operates
 
 ## Essential Features
 
-- **Merge PDF:** Consolidate multiple PDF documents into a singular, cohesive file.
-- **Split PDF:** Extract specific pages or partition comprehensive documents into localized segments.
-- **Compress PDF:** Clean metadata and optimize PDF structure client-side. Reductions are often modest on image-heavy files.
-- **Image to PDF:** Seamlessly convert JPG and PNG image formats into properly structured PDF documents.
+- **Merge PDF:** Consolidate multiple PDF documents into a singular, cohesive file with drag-to-reorder and page thumbnails.
+- **Split PDF:** Extract a validated page range into a new document.
+- **Compress PDF:** Rebuild pages as optimized JPEGs with High/Medium/Low quality presets for real size savings.
+- **Image to PDF:** Convert JPG and PNG images into PDF documents with previews and reordering.
+- **Watermark PDF:** Stamp custom text across every page with opacity and size controls.
+- **Protect / Unlock PDF:** Encrypt with a password or remove a known password entirely in the browser.
+- **PWA Install:** Installable app shell for faster repeat visits.
 - **Absolute Privacy:** Functions exclusively on the client-side without relying on backend infrastructure, external APIs, or data uploads.
 - **Modern Interface:** Constructed utilizing Tailwind CSS, featuring a design language inspired by premium software aesthetics.
 
@@ -24,9 +27,9 @@ Engineered with **Next.js**, **Tailwind CSS**, and **pdf-lib**, pdFahim operates
 - **Framework:** [Next.js (App Router)](https://nextjs.org/)
 - **Interface Library:** [React](https://react.dev/)
 - **Styling:** [Tailwind CSS v4](https://tailwindcss.com/)
-- **Document Processing:** [pdf-lib](https://pdf-lib.js.org/)
+- **Document Processing:** [`@cantoo/pdf-lib`](https://www.npmjs.com/package/@cantoo/pdf-lib) + [PDF.js](https://mozilla.github.io/pdf.js/)
 - **Iconography:** [Lucide React](https://lucide.dev/)
-- **Interaction (Drag & Drop):** [React Dropzone](https://react-dropzone.js.org/)
+- **Interaction (Drag & Drop):** [React Dropzone](https://react-dropzone.js.org/) + [dnd kit](https://dndkit.com/)
 - **Type System:** [TypeScript](https://www.typescriptlang.org/)
 
 ---
@@ -58,15 +61,18 @@ npm run dev
 ### 4. Application Access
 Navigate to `http://localhost:3000` via your preferred web browser to access the pdFahim interface.
 
+### 5. Tests
+```bash
+npm test
+```
+
 ---
 
 ## Visual References
 
-*(Placeholders - Actual visual assets should be deposited within the `public/screenshots/` directory)*
-
-- `public/screenshots/landing.png` - Demonstration of the primary application interface.
-- `public/screenshots/tools-dashboard.png` - The primary utility selection grid.
-- `public/screenshots/merge-tool.png` - The interactive file composition interface.
+- `public/screenshots/landing.png` - Landing hero
+- `public/screenshots/tools-dashboard.png` - Tool selection grid
+- `public/screenshots/merge-tool.png` - Merge workflow
 
 ---
 

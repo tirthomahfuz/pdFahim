@@ -2,7 +2,7 @@
 
 import { useRef, useSyncExternalStore } from "react"
 import Link from "next/link"
-import { ArrowRight, Layers, LayoutPanelLeft, Minimize2, Image as ImageIcon, ShieldCheck, Zap } from "lucide-react"
+import { ArrowRight, Layers, LayoutPanelLeft, Minimize2, Image as ImageIcon, ShieldCheck, Zap, Stamp, Lock } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card"
 import { ScrollImageSequence } from "@/components/ui/ScrollImageSequence"
@@ -52,7 +52,7 @@ export default function Home() {
             </h1>
 
             <p className="text-xl md:text-2xl text-zinc-400 max-w-2xl mb-10 leading-relaxed font-light">
-              Merge, split, compress, and convert files privately in your browser.
+              Merge, split, compress, convert, watermark, and protect files privately in your browser.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 w-full justify-center max-w-sm sm:max-w-none">
@@ -80,7 +80,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <Link href="/tools/merge" className="group">
               <Card className="h-full transition-all hover:shadow-md hover:border-primary/50 group-hover:-translate-y-1">
                 <CardHeader>
@@ -112,7 +112,7 @@ export default function Home() {
                     <Minimize2 className="size-6" />
                   </div>
                   <CardTitle>Compress PDF</CardTitle>
-                  <CardDescription>Clean metadata and optimize PDF structure for a smaller download.</CardDescription>
+                  <CardDescription>Rebuild pages as optimized JPEGs for meaningful size reduction.</CardDescription>
                 </CardHeader>
               </Card>
             </Link>
@@ -125,6 +125,30 @@ export default function Home() {
                   </div>
                   <CardTitle>Image to PDF</CardTitle>
                   <CardDescription>Convert JPG and PNG images perfectly formatted into PDF documents.</CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+
+            <Link href="/tools/watermark" className="group">
+              <Card className="h-full transition-all hover:shadow-md hover:border-primary/50 group-hover:-translate-y-1">
+                <CardHeader>
+                  <div className="size-12 rounded-lg bg-amber-500/10 flex items-center justify-center mb-4 group-hover:bg-amber-500 group-hover:text-white transition-colors text-amber-600">
+                    <Stamp className="size-6" />
+                  </div>
+                  <CardTitle>Watermark PDF</CardTitle>
+                  <CardDescription>Stamp custom text across every page with opacity control.</CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+
+            <Link href="/tools/protect" className="group">
+              <Card className="h-full transition-all hover:shadow-md hover:border-primary/50 group-hover:-translate-y-1">
+                <CardHeader>
+                  <div className="size-12 rounded-lg bg-rose-500/10 flex items-center justify-center mb-4 group-hover:bg-rose-500 group-hover:text-white transition-colors text-rose-500">
+                    <Lock className="size-6" />
+                  </div>
+                  <CardTitle>Protect PDF</CardTitle>
+                  <CardDescription>Encrypt files with a password — unlock them again when you need to.</CardDescription>
                 </CardHeader>
               </Card>
             </Link>

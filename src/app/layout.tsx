@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { PwaRegister } from "@/components/PwaRegister";
 import { getSiteUrl, siteConfig } from "@/lib/site";
 
 const dmSans = DM_Sans({
@@ -25,6 +26,18 @@ export const metadata: Metadata = {
   },
   description: siteConfig.description,
   applicationName: siteConfig.name,
+  appleWebApp: {
+    capable: true,
+    title: siteConfig.name,
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
   openGraph: {
     type: "website",
     siteName: siteConfig.name,
@@ -40,6 +53,10 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#6d28d9",
 };
 
 export default function RootLayout({
@@ -61,6 +78,7 @@ export default function RootLayout({
           {children}
         </main>
         <Footer />
+        <PwaRegister />
       </body>
     </html>
   );

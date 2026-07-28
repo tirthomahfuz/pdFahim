@@ -9,6 +9,8 @@ const navLinks = [
     { href: "/tools/split", label: "Split" },
     { href: "/tools/compress", label: "Compress" },
     { href: "/tools/image-to-pdf", label: "Image to PDF" },
+    { href: "/tools/watermark", label: "Watermark" },
+    { href: "/tools/protect", label: "Protect" },
 ]
 
 export function Header() {
@@ -48,7 +50,7 @@ export function Header() {
                     <span className="font-bold text-lg tracking-tight">pdFahim</span>
                 </Link>
 
-                <nav className="hidden md:flex items-center gap-6" aria-label="Primary">
+                <nav className="hidden lg:flex items-center gap-5" aria-label="Primary">
                     {navLinks.map((link) => (
                         <Link
                             key={link.href}
@@ -71,7 +73,7 @@ export function Header() {
                     <button
                         ref={menuButtonRef}
                         type="button"
-                        className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-md border border-input bg-background text-foreground"
+                        className="lg:hidden inline-flex h-10 w-10 items-center justify-center rounded-md border border-input bg-background text-foreground"
                         aria-expanded={open}
                         aria-controls="mobile-nav"
                         aria-label={open ? "Close menu" : "Open menu"}
@@ -83,7 +85,7 @@ export function Header() {
             </div>
 
             {open && (
-                <div id="mobile-nav" className="md:hidden border-t bg-background">
+                <div id="mobile-nav" className="lg:hidden border-t bg-background">
                     <nav className="container mx-auto flex flex-col gap-1 px-4 py-3" aria-label="Mobile">
                         {navLinks.map((link, index) => (
                             <Link
@@ -96,6 +98,13 @@ export function Header() {
                                 {link.label}
                             </Link>
                         ))}
+                        <Link
+                            href="/tools/unlock"
+                            className="rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                            onClick={() => setOpen(false)}
+                        >
+                            Unlock
+                        </Link>
                         <Link
                             href="/tools"
                             className="rounded-md px-3 py-2.5 text-sm font-medium text-primary hover:bg-muted"

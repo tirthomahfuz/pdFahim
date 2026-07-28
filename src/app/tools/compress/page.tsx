@@ -5,24 +5,23 @@ import { Minimize2, Loader2 } from "lucide-react"
 import { FileUploader } from "@/components/ui/FileUploader"
 import { Button } from "@/components/ui/Button"
 import { Alert } from "@/components/ui/Alert"
-import { compressPdf, downloadFile, toUserFacingError, formatBytes } from "@/lib/pdf-utils"
+import { Progress } from "@/components/ui/Progress"
+import {
+    compressPdf,
+    downloadFile,
+    toUserFacingError,
+    formatBytes,
+    type CompressQuality,
+    type ProgressUpdate,
+} from "@/lib/pdf-utils"
 
 export default function CompressPdfPage() {
     const [file, setFile] = useState<File | null>(null)
+    const [quality, setQuality] = useState<CompressQuality>("medium")
     const [isProcessing, setIsProcessing] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<{ originalSize: number; newSize: number; filename: string } | null>(null)
-
-    const handleFilesSelected = (newFiles: File[]) => {
-        setFile(newFiles[0])
-        setError(null)
-        setSuccess(null)
-    }
-
-    const handleRemoveFile = () => {
-        setFile(null)
-        setSuccess(null)
-    }
+    const [progress, setProgress] = useState<ProgressUpdate | null>(null)
 
     const handleCompress = async () => {
         if (!file) {
@@ -34,9 +33,10 @@ export default function CompressPdfPage() {
             setIsProcessing(true)
             setError(null)
             setSuccess(null)
+            setProgress({ current: 0, total: 1, message: "Starting compression…" })
 
-            const compressedPdfBytes = await compressPdf(file)
-            const result = downloadFile(compressedPdfBytes, `optimized_${file.name}`)
+            const compressedPdfBytes = await compressPdf(file, quality, setProgress)
+            const result = downloadFile(compressedPdfBytes, `compressed_${file.name}`)
 
             setSuccess({
                 originalSize: file.size,
@@ -45,15 +45,19 @@ export default function CompressPdfPage() {
             })
         } catch (err) {
             console.error(err)
-            setError(toUserFacingError(err, "An error occurred while optimizing the PDF."))
+            setError(toUserFacingError(err, "An error occurred while compressing the PDF."))
         } finally {
             setIsProcessing(false)
+            setProgress(null)
         }
     }
 
     const sizeDelta = success ? success.originalSize - success.newSize : 0
     const reductionPct = success && success.originalSize > 0
         ? Math.round((sizeDelta / success.originalSize) * 100)
+        : 0
+    const progressValue = progress && progress.total > 0
+        ? (progress.current / progress.total) * 100
         : 0
 
     return (
@@ -64,55 +68,90 @@ export default function CompressPdfPage() {
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight mb-2">Compress PDF</h1>
                 <p className="text-muted-foreground">
-                    Clean metadata and optimize PDF structure in your browser. Image-heavy files may only shrink a little.
+                    Rebuild pages as optimized JPEGs for real size savings. This is lossy — text stays readable at Medium/High.
                 </p>
             </div>
 
             <div className="bg-card border rounded-2xl p-6 md:p-8 shadow-sm">
                 {!file ? (
                     <FileUploader
-                        onFilesSelected={handleFilesSelected}
+                        onFilesSelected={(files) => {
+                            setFile(files[0])
+                            setError(null)
+                            setSuccess(null)
+                        }}
                         accept={{ "application/pdf": [".pdf"] }}
                         maxFiles={1}
-                        description="Select a PDF to optimize"
+                        showPdfPreviews
+                        description="Select a PDF to compress"
                     />
                 ) : (
                     <div className="space-y-6">
                         <FileUploader
-                            onFilesSelected={handleFilesSelected}
+                            onFilesSelected={(files) => {
+                                setFile(files[0])
+                                setError(null)
+                                setSuccess(null)
+                            }}
                             accept={{ "application/pdf": [".pdf"] }}
                             value={[file]}
-                            onRemove={handleRemoveFile}
+                            onRemove={() => {
+                                setFile(null)
+                                setSuccess(null)
+                            }}
                             maxFiles={1}
+                            showPdfPreviews
                         />
 
+                        <div className="rounded-xl border bg-muted/20 p-6 space-y-3">
+                            <h3 className="font-medium">Compression quality</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                {([
+                                    ["high", "High", "Larger file, sharper pages"],
+                                    ["medium", "Medium", "Balanced size and clarity"],
+                                    ["low", "Low", "Smallest file, more artifacts"],
+                                ] as const).map(([value, label, hint]) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => setQuality(value)}
+                                        className={`rounded-lg border px-4 py-3 text-left transition-colors ${
+                                            quality === value
+                                                ? "border-primary bg-primary/5"
+                                                : "border-input bg-background hover:bg-muted/40"
+                                        }`}
+                                    >
+                                        <div className="font-medium text-sm">{label}</div>
+                                        <div className="text-xs text-muted-foreground mt-1">{hint}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {success && (
-                            <Alert variant="success" title="Optimization complete">
+                            <Alert variant="success" title="Compression complete">
                                 <p>
                                     {sizeDelta > 0 ? (
                                         <>
                                             Reduced from {formatBytes(success.originalSize)} to {formatBytes(success.newSize)}
                                             {" "}({reductionPct}% smaller).
                                         </>
-                                    ) : sizeDelta < 0 ? (
-                                        <>
-                                            Result is {formatBytes(success.newSize)} vs original {formatBytes(success.originalSize)}.
-                                            Structure was cleaned, but this file did not get smaller.
-                                        </>
                                     ) : (
                                         <>
-                                            Size stayed at {formatBytes(success.newSize)}. Metadata was cleaned and the file was re-saved.
+                                            Result is {formatBytes(success.newSize)} vs original {formatBytes(success.originalSize)}.
+                                            Try a lower quality setting for stronger reduction.
                                         </>
                                     )}
                                 </p>
                                 <p className="text-xs text-green-600 mt-2">
-                                    Download started as {success.filename}. Client-side optimization mainly removes unused objects and metadata.
+                                    Download started as {success.filename}. Pages were rasterized, so selectable text may be lost.
                                 </p>
                             </Alert>
                         )}
 
-                        {error && (
-                            <Alert variant="error">{error}</Alert>
+                        {error && <Alert variant="error">{error}</Alert>}
+                        {isProcessing && progress && (
+                            <Progress value={progressValue} label={progress.message} />
                         )}
 
                         <div className="flex justify-end pt-4 border-t">
@@ -125,10 +164,10 @@ export default function CompressPdfPage() {
                                 {isProcessing ? (
                                     <>
                                         <Loader2 className="mr-2 size-4 animate-spin" />
-                                        Optimizing...
+                                        Compressing...
                                     </>
                                 ) : (
-                                    success ? "Optimize Again" : "Optimize PDF"
+                                    success ? "Compress Again" : "Compress PDF"
                                 )}
                             </Button>
                         </div>
